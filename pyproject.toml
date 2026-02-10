@@ -1,0 +1,7 @@
+[project]
+name = "pylsuq"
+version = "0.1.0"
+authors = [{name = "Axel Matstoms", email = "axel.matstoms@saabgroup.com"}]
+dependencies = [
+    "lxml"
+]
