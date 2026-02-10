@@ -100,9 +100,13 @@ def _read_child(field_, metadata, elem, ns=None):
         return type_.from_xml(child) if child is not None else None
     elif is_union(field_.type):
         for type_ in get_args(field_.type):
+            if type_ is type(None):
+                continue
             child = elem.find(type_.tag(ns=ns, use_class_ns=metadata.use_class_ns))
             if child is not None:
                 return type_.from_xml(child)
+        else:  # No union member is present
+            return None
     else:
         tag = field_.type.tag(ns=ns, use_class_ns=metadata.use_class_ns)
         return field_.type.from_xml(elem.find(tag))
@@ -156,6 +160,10 @@ class DomElem:
                     child_ns = type_.NS if metadata.use_class_ns else self.NS
                     elem.extend([e.to_xml(ns=child_ns) for e in value])
                 elif is_optional(field_.type):
+                    if value is not None:
+                        child_ns = value.NS if metadata.use_class_ns else self.NS
+                        elem.append(value.to_xml(ns=child_ns))
+                elif is_union(field_.type):
                     if value is not None:
                         child_ns = value.NS if metadata.use_class_ns else self.NS
                         elem.append(value.to_xml(ns=child_ns))
