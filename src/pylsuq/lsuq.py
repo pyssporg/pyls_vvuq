@@ -146,6 +146,8 @@ class ConvexHull(UQElem, MutableSequence):
         self.points.insert(idx, value)
 
 
+
+
 @dataclass
 class Boundary(UQElem):
     shape: ConvexHull | Box
@@ -182,8 +184,7 @@ class Axes(UQElem, MutableSequence):
 class OperationalDomain(UQElem, is_document=True):
     axes: Axes
     boundary: Boundary
-    experiment_points: ExperimentPoints
-
+    experiment_points: ExperimentPoints | None = field(default=None)
 
 @dataclass
 class ParameterSet(UQElem):
@@ -198,18 +199,105 @@ class ParameterSet(UQElem):
 
 
 @dataclass
+class ObservedVariable(UQElem):
+    name: str = field(metadata=xml_attr())
+    distribution_approximation: str | None = field(
+        default=None,
+        metadata=xml_attr(name="distributionApproximation")
+    )
+    unit: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class ObservedVariables(UQElem):
+    """
+    Container for multiple observed variables in a UQ activity.
+    Implements MutableSequence for list-like operations on variables.
+    """
+    observed_variables: list[ObservedVariable] = field(default_factory=list)
+    def __getitem__(self, idx: int) -> ObservedVariable:
+        """Get an observed variable by index."""
+        return self.observed_variables[idx]
+
+    def __setitem__(self, idx: int, value: ObservedVariable) -> None:
+        """Set an observed variable at index."""
+        if not isinstance(value, ObservedVariable):
+            raise TypeError(f"Expected ObservedVariable, got {type(value)}")
+        self.observed_variables[idx] = value
+
+    def __delitem__(self, idx: int) -> None:
+        """Delete an observed variable at index."""
+        del self.observed_variables[idx]
+
+    def __len__(self) -> int:
+        """Return the number of observed variables."""
+        return len(self.observed_variables)
+
+    def insert(self, idx: int, value: ObservedVariable) -> None:
+        """Insert an observed variable at index."""
+        if not isinstance(value, ObservedVariable):
+            raise TypeError(f"Expected ObservedVariable, got {type(value)}")
+        self.observed_variables.insert(idx, value)
+
+
+@dataclass
 class ForwardUncertaintyQuantification(UQElem):
     parameter_set: ParameterSet
-    # observed_variables: ObservedVariables
+    observed_variables: ObservedVariables
+    # desired_results: DesiredResults
+    # simulation_setting: SimulationSetting
+    # sampling_method: SamplingMethod
+
+@dataclass
+class  Validation(UQElem):
+    parameter_set: ParameterSet
+    observed_variables: ObservedVariables
+    # desired_results: DesiredResults
+    # simulation_setting: SimulationSetting
+    # sampling_method: SamplingMethod
+
+@dataclass
+class  Verification(UQElem):
+    parameter_set: ParameterSet
+    observed_variables: ObservedVariables
+    # desired_results: DesiredResults
+    # simulation_setting: SimulationSetting
+    # sampling_method: SamplingMethod
+
+@dataclass
+class  Calibration(UQElem):
+    parameter_set: ParameterSet
+    observed_variables: ObservedVariables
+    # desired_results: DesiredResults
+    # simulation_setting: SimulationSetting
+    # sampling_method: SamplingMethod
+
+@dataclass
+class  SensitivityAnalysis(UQElem):
+    parameter_set: ParameterSet
+    observed_variables: ObservedVariables
     # desired_results: DesiredResults
     # simulation_setting: SimulationSetting
     # sampling_method: SamplingMethod
 
 
+
 @dataclass
 class ExperimentSet(UQElem):
-    forward_uq: ForwardUncertaintyQuantification
+    forward_uq: ForwardUncertaintyQuantification | None = field(default=None)
+    validation: Validation | None = field(default=None)
+    verification: Verification | None = field(default=None)
+    calibration: Calibration | None = field(default=None)
+    sensitivity_analysis: SensitivityAnalysis | None = field(default=None)
     id: str | None = field(default=None, metadata=xml_attr())
+
+    def __post_init__(self):
+        """Ensure at least one activity is provided."""
+        activities = [self.forward_uq, self.validation, self.verification,
+                      self.calibration, self.sensitivity_analysis]
+        if not any(activities):
+            raise ValueError("At least one activity type must be provided")
+
 
 
 @dataclass

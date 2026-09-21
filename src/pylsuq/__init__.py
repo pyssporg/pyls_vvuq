@@ -12,11 +12,18 @@ from pylsuq.lsuq import (
     Axis,
     Axes,
     OperationalDomain,
+ObservedVariables,
+ObservedVariable,
     ParameterSet,
     ForwardUncertaintyQuantification,
+    Validation,
+    Verification,
+    Calibration,
+SensitivityAnalysis,
     ExperimentSet,
     Model,
     ExperimentSetup,
+    ObservedVariables
 )
 
 from pylsuq.domelem import load_xml, save_xml
@@ -40,6 +47,7 @@ __all__ = [
     "ExperimentSet",
     "Model",
     "ExperimentSetup",
+    "ObservedVariables"
     "load_xml",
     "save_xml",
 ]
