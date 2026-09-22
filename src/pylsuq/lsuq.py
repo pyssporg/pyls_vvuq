@@ -6,6 +6,7 @@ from lxml import etree as et
 
 from pylsuq.domelem import DomElem, xml_metadata, xml_attr
 from pylsuq.ssc import ATopLevelMetaData
+from collections.abc import MutableSequence
 
 
 UQ_NAMESPACE = "http://openscaling.org/UQ1/UncertaintyQuantification"
@@ -335,16 +336,19 @@ class  SensitivityAnalysis(UQElem):
 
 
 @dataclass
+@dataclass
 class Activities(UQElem, MutableSequence):
     """
     Container for all activity types.
-    Can contain Verification, Calibration, Validation, SensitivityAnalysis, and ForwardUQ.
+    Activities can be interspersed in any order (Verification, Calibration,
+    Validation, SensitivityAnalysis, ForwardUncertaintyQuantification).
+
+    Attributes:
+        activities: List of activities in document order (can be mixed types)
+        id: Optional identifier
+        credibility_level: Optional credibility level for all activities
     """
-    verifications: list[Verification] = field(default_factory=list)
-    calibrations: list[Calibration] = field(default_factory=list)
-    validations: list[Validation] = field(default_factory=list)
-    sensitivity_analyses: list[SensitivityAnalysis] = field(default_factory=list)
-    forward_uqs: list[ForwardUncertaintyQuantification] = field(default_factory=list)
+    activities: list = field(default_factory=list)
 
     id: str | None = field(default=None, metadata=xml_attr())
     credibility_level: str | None = field(
@@ -353,50 +357,69 @@ class Activities(UQElem, MutableSequence):
     )
 
     def __getitem__(self, idx: int):
-        """Get activity by index (searches all activity lists in order)."""
-        all_activities = (
-            self.verifications + self.calibrations + self.validations +
-            self.sensitivity_analyses + self.forward_uqs
-        )
-        return all_activities[idx]
+        """Get an activity by index."""
+        return self.activities[idx]
 
     def __setitem__(self, idx: int, value) -> None:
-        """Set activity at index."""
-        raise NotImplementedError("Use add_verification(), add_validation(), etc.")
+        """Set an activity at index."""
+        self.activities[idx] = value
 
     def __delitem__(self, idx: int) -> None:
-        """Delete activity at index."""
-        raise NotImplementedError("Use remove() methods on specific activity lists")
+        """Delete an activity at index."""
+        del self.activities[idx]
 
     def __len__(self) -> int:
         """Return total number of activities."""
-        return (len(self.verifications) + len(self.calibrations) +
-                len(self.validations) + len(self.sensitivity_analyses) +
-                len(self.forward_uqs))
+        return len(self.activities)
 
     def insert(self, idx: int, value) -> None:
-        """Insert activity at index."""
-        raise NotImplementedError("Use add_verification(), add_validation(), etc.")
+        """Insert an activity at index."""
+        self.activities.insert(idx, value)
 
-    def add_verification(self, verification: Verification) -> None:
+    def add_verification(self, verification: 'Verification') -> None:
         """Add a verification activity."""
-        self.verifications.append(verification)
+        self.activities.append(verification)
 
-    def add_calibration(self, calibration: Calibration) -> None:
+    def add_calibration(self, calibration: 'Calibration') -> None:
         """Add a calibration activity."""
-        self.calibrations.append(calibration)
+        self.activities.append(calibration)
 
-    def add_validation(self, validation: Validation) -> None:
+    def add_validation(self, validation: 'Validation') -> None:
         """Add a validation activity."""
-        self.validations.append(validation)
+        self.activities.append(validation)
 
-    def add_sensitivity_analysis(self, sa: SensitivityAnalysis) -> None:
+    def add_sensitivity_analysis(self, sa: 'SensitivityAnalysis') -> None:
         """Add a sensitivity analysis activity."""
-        self.sensitivity_analyses.append(sa)
+        self.activities.append(sa)
 
-    def add_forward_uq(self, forward_uq: ForwardUncertaintyQuantification) -> None:
+    def add_forward_uq(self, forward_uq: 'ForwardUncertaintyQuantification') -> None:
         """Add a forward UQ activity."""
-        self.forward_uqs.append(forward_uq)
+        self.activities.append(forward_uq)
+
+    def get_verifications(self) -> list['Verification']:
+        """Return all verification activities in document order."""
+        from pylsuq.uq import Verification
+        return [a for a in self.activities if isinstance(a, Verification)]
+
+    def get_calibrations(self) -> list['Calibration']:
+        """Return all calibration activities in document order."""
+        from pylsuq.uq import Calibration
+        return [a for a in self.activities if isinstance(a, Calibration)]
+
+    def get_validations(self) -> list['Validation']:
+        """Return all validation activities in document order."""
+        from pylsuq.uq import Validation
+        return [a for a in self.activities if isinstance(a, Validation)]
+
+    def get_sensitivity_analyses(self) -> list['SensitivityAnalysis']:
+        """Return all sensitivity analysis activities in document order."""
+        from pylsuq.uq import SensitivityAnalysis
+        return [a for a in self.activities if isinstance(a, SensitivityAnalysis)]
+
+    def get_forward_uqs(self) -> list['ForwardUncertaintyQuantification']:
+        """Return all forward UQ activities in document order."""
+        from pylsuq.uq import ForwardUncertaintyQuantification
+        return [a for a in self.activities if isinstance(a, ForwardUncertaintyQuantification)]
 
 
 
