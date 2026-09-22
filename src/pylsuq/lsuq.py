@@ -241,18 +241,20 @@ class ObservedVariables(UQElem):
         self.observed_variables.insert(idx, value)
 
 
+
 @dataclass
 class ErrorMetric(UQElem):
-    """Represents an error metric in results."""
+    """
+    Represents an error metric in results.
+    """
     type: str = field(metadata=xml_attr())
     value: float = field(metadata=xml_attr())
     name: str | None = field(default=None, metadata=xml_attr())
     threshold: float | None = field(default=None, metadata=xml_attr())
-    #pass_: bool | None = field(
-    #    default=None,
-    #    metadata=xml_attr(name="pass")
-    #)
-
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
 
 @dataclass
 class Results(UQElem):
