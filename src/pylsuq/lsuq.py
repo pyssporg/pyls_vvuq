@@ -338,7 +338,6 @@ class  SensitivityAnalysis(UQElem):
 
 
 @dataclass
-@dataclass
 class Activities(UQElem, MutableSequence):
     """
     Container for all activity types.
@@ -436,7 +435,7 @@ class Model(UQElem):
 
 
 @dataclass
-class UncertaintyQuantification(UQElem, ATopLevelMetaData):
+class UncertaintyQuantification(UQElem, ATopLevelMetaData, is_document=True):
     """
     Root element for UQ metadata.
     """
