@@ -241,62 +241,162 @@ class ObservedVariables(UQElem):
 
 
 @dataclass
+class ErrorMetric(UQElem):
+    """Represents an error metric in results."""
+    type: str = field(metadata=xml_attr())
+    value: float = field(metadata=xml_attr())
+    name: str | None = field(default=None, metadata=xml_attr())
+    threshold: float | None = field(default=None, metadata=xml_attr())
+    #pass_: bool | None = field(
+    #    default=None,
+    #    metadata=xml_attr(name="pass")
+    #)
+
+
+@dataclass
+class Results(UQElem):
+    """
+    Container for results, which can be distributions or error metrics.
+    Supports external data sources via AExternalSource.
+    """
+    # TODO: Add distribution support once GDistribution is defined
+    error_metrics: list[ErrorMetric] = field(default_factory=list)
+    point: str | None = field(default=None, metadata=xml_attr())
+
+
+    # AExternalSource attributes
+    source: str | None = field(default=None, metadata=xml_attr())
+    type: str | None = field(default=None, metadata=xml_attr())
+    source_base: str | None = field(
+        default=None,
+        metadata=xml_attr(name="sourceBase")
+    )
+    def set_point_reference(self, point_id: str) -> None:
+        """Set reference to a point by ID."""
+        self.point = point_id
+
+@dataclass
+class ResultSet(UQElem):
+    """Container for multiple Results elements."""
+    results: list[Results] = field(default_factory=list)
+
+@dataclass
 class ForwardUncertaintyQuantification(UQElem):
     parameter_set: ParameterSet
-    observed_variables: ObservedVariables
-    # desired_results: DesiredResults
-    # simulation_setting: SimulationSetting
-    # sampling_method: SamplingMethod
+    observed_variables: ObservedVariables | None = field(default=None)
+    #desired_results: DesiredResults | None = field(default=None)
+    #simulation_setting: SimulationSetting | None = field(default=None)
+    #sampling_method: SamplingMethod | None = field(default=None)
+    #result_set: ResultSet | None = field(default=None)
 
 @dataclass
 class  Validation(UQElem):
     parameter_set: ParameterSet
-    observed_variables: ObservedVariables
-    # desired_results: DesiredResults
-    # simulation_setting: SimulationSetting
-    # sampling_method: SamplingMethod
+    observed_variables: ObservedVariables | None = field(default=None)
+    id: str | None = field(default=None, metadata=xml_attr())
+    #desired_results: DesiredResults | None = field(default=None)
+    #simulation_setting: SimulationSetting | None = field(default=None)
+    #sampling_method: SamplingMethod | None = field(default=None)
+    result_set: ResultSet | None = field(default=None)
+    activity_domain_ref: str |  None = field(default=None)
+
+
 
 @dataclass
 class  Verification(UQElem):
     parameter_set: ParameterSet
-    observed_variables: ObservedVariables
-    # desired_results: DesiredResults
-    # simulation_setting: SimulationSetting
-    # sampling_method: SamplingMethod
+    observed_variables: ObservedVariables | None = field(default=None)
+    id: str | None = field(default=None, metadata=xml_attr())
+    #desired_results: DesiredResults | None = field(default=None)
+    #simulation_setting: SimulationSetting | None = field(default=None)
+    #sampling_method: SamplingMethod | None = field(default=None)
+    #result_set: ResultSet | None = field(default=None)
 
 @dataclass
 class  Calibration(UQElem):
     parameter_set: ParameterSet
-    observed_variables: ObservedVariables
-    # desired_results: DesiredResults
-    # simulation_setting: SimulationSetting
-    # sampling_method: SamplingMethod
+    observed_variables: ObservedVariables | None = field(default=None)
+    id: str | None = field(default=None, metadata=xml_attr())
+    #desired_results: DesiredResults | None = field(default=None)
+    #simulation_setting: SimulationSetting | None = field(default=None)
+    #sampling_method: SamplingMethod | None = field(default=None)
+    #result_set: ResultSet | None = field(default=None)
 
 @dataclass
 class  SensitivityAnalysis(UQElem):
     parameter_set: ParameterSet
-    observed_variables: ObservedVariables
-    # desired_results: DesiredResults
-    # simulation_setting: SimulationSetting
-    # sampling_method: SamplingMethod
+    observed_variables: ObservedVariables | None = field(default=None)
+    id: str | None = field(default=None, metadata=xml_attr())
+    #desired_results: DesiredResults | None = field(default=None)
+    #simulation_setting: SimulationSetting | None = field(default=None)
+    #sampling_method: SamplingMethod | None = field(default=None)
+    #result_set: ResultSet | None = field(default=None)
 
 
 
 @dataclass
-class ExperimentSet(UQElem):
-    forward_uq: ForwardUncertaintyQuantification | None = field(default=None)
-    validation: Validation | None = field(default=None)
-    verification: Verification | None = field(default=None)
-    calibration: Calibration | None = field(default=None)
-    sensitivity_analysis: SensitivityAnalysis | None = field(default=None)
-    id: str | None = field(default=None, metadata=xml_attr())
+class Activities(UQElem, MutableSequence):
+    """
+    Container for all activity types.
+    Can contain Verification, Calibration, Validation, SensitivityAnalysis, and ForwardUQ.
+    """
+    verifications: list[Verification] = field(default_factory=list)
+    calibrations: list[Calibration] = field(default_factory=list)
+    validations: list[Validation] = field(default_factory=list)
+    sensitivity_analyses: list[SensitivityAnalysis] = field(default_factory=list)
+    forward_uqs: list[ForwardUncertaintyQuantification] = field(default_factory=list)
 
-    def __post_init__(self):
-        """Ensure at least one activity is provided."""
-        activities = [self.forward_uq, self.validation, self.verification,
-                      self.calibration, self.sensitivity_analysis]
-        if not any(activities):
-            raise ValueError("At least one activity type must be provided")
+    id: str | None = field(default=None, metadata=xml_attr())
+    credibility_level: str | None = field(
+        default=None,
+        metadata=xml_attr(name="credibilityLevel")
+    )
+
+    def __getitem__(self, idx: int):
+        """Get activity by index (searches all activity lists in order)."""
+        all_activities = (
+            self.verifications + self.calibrations + self.validations +
+            self.sensitivity_analyses + self.forward_uqs
+        )
+        return all_activities[idx]
+
+    def __setitem__(self, idx: int, value) -> None:
+        """Set activity at index."""
+        raise NotImplementedError("Use add_verification(), add_validation(), etc.")
+
+    def __delitem__(self, idx: int) -> None:
+        """Delete activity at index."""
+        raise NotImplementedError("Use remove() methods on specific activity lists")
+
+    def __len__(self) -> int:
+        """Return total number of activities."""
+        return (len(self.verifications) + len(self.calibrations) +
+                len(self.validations) + len(self.sensitivity_analyses) +
+                len(self.forward_uqs))
+
+    def insert(self, idx: int, value) -> None:
+        """Insert activity at index."""
+        raise NotImplementedError("Use add_verification(), add_validation(), etc.")
+
+    def add_verification(self, verification: Verification) -> None:
+        """Add a verification activity."""
+        self.verifications.append(verification)
+
+    def add_calibration(self, calibration: Calibration) -> None:
+        """Add a calibration activity."""
+        self.calibrations.append(calibration)
+
+    def add_validation(self, validation: Validation) -> None:
+        """Add a validation activity."""
+        self.validations.append(validation)
+
+    def add_sensitivity_analysis(self, sa: SensitivityAnalysis) -> None:
+        """Add a sensitivity analysis activity."""
+        self.sensitivity_analyses.append(sa)
+
+    def add_forward_uq(self, forward_uq: ForwardUncertaintyQuantification) -> None:
+        """Add a forward UQ activity."""
+        self.forward_uqs.append(forward_uq)
 
 
 
@@ -311,11 +411,30 @@ class Model(UQElem):
 
 
 @dataclass
-class ExperimentSetup(UQElem, ATopLevelMetaData):
-    model: Model
-    experiment_set: ExperimentSet
+class UncertaintyQuantification(UQElem, ATopLevelMetaData):
+    """
+    Root element for UQ metadata.
+    """
+    activities: Activities
     name: str = field(metadata=xml_attr())
+
+    model: Model | None = field(default=None)
+    #required_assumptions: list[RequiredAssumptions] = field(default_factory=list)
+    #domains: Domains | None = field(default=None)
+
     info: str | None = field(default=None, metadata=xml_attr())
+    required_assumptions_refs: str | None = field(
+        default=None,
+        metadata=xml_attr(name="requiredAssumptionsRefs")
+    )
+    stmd_ref: str | None = field(
+        default=None,
+        metadata=xml_attr(name="stmdRef")
+    )
+    srmd_ref: str | None = field(
+        default=None,
+        metadata=xml_attr(name="srmdRef")
+    )
 
 
 def main():
