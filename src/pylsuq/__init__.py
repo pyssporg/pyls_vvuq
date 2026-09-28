@@ -22,8 +22,8 @@ from pylsuq.lsuq import (
     SensitivityAnalysis,
     Activities,
     Model,
-TypedOperationalDomainKind,
-Domains,
+    TypedOperationalDomainKind,
+    Domains,
     UncertaintyQuantification,
     Results,
     ResultSet,
@@ -55,4 +55,8 @@ __all__ = [
     "ObservedVariables"
     "load_xml",
     "save_xml",
+    "ObservedVariables",
+    "Results",
+    "ErrorMetric",
+    "ResultSet"
 ]
