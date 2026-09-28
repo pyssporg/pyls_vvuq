@@ -22,6 +22,8 @@ from pylsuq.lsuq import (
     SensitivityAnalysis,
     Activities,
     Model,
+TypedOperationalDomainKind,
+Domains,
     UncertaintyQuantification,
     Results,
     ResultSet,

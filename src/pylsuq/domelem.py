@@ -170,7 +170,10 @@ class DomElem:
                 else:
                     value = getattr(self, field_.name)
                     child_ns = value.NS if metadata.use_class_ns else self.NS
-                    elem.append(value.to_xml(ns=child_ns))
+                    try:
+                        elem.append(value.to_xml(ns=child_ns))
+                    except AttributeError as e:
+                        raise AttributeError(f"Tried to write child {field_.name}, object {value} has no to_xml method") from e
 
         return elem
 
