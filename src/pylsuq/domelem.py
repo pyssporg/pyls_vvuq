@@ -81,7 +81,13 @@ def _read_attr(field_, metadata, elem):
         return deserialize(value) if value is not None else None
     else:
         deserialize = deserialize or field_.type
-        return deserialize(elem.get(name))
+        value = elem.get(name)
+        if value is None:  # Absent attribute: fall back to the field default
+            if field_.default is not MISSING:
+                return field_.default
+            if field_.default_factory is not MISSING:
+                return field_.default_factory()
+        return deserialize(value)
 
 
 def _read_child(field_, metadata, elem, ns=None):
@@ -171,10 +177,7 @@ class DomElem:
                 else:
                     value = getattr(self, field_.name)
                     child_ns = value.NS if metadata.use_class_ns else self.NS
-                    try:
-                        elem.append(value.to_xml(ns=child_ns))
-                    except AttributeError as e:
-                        raise AttributeError(f"{type(self)}: Tried to write child {field_.name}, object {value} has no to_xml method") from e
+                    elem.append(value.to_xml(ns=child_ns))
 
         return elem
 
