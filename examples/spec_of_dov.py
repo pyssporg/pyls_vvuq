@@ -1,4 +1,10 @@
 import pylsuq as lsuq
+from pathlib import Path
+
+# create output directory
+output_dir = Path(__file__).parent / "output"
+output_dir.mkdir(parents=True, exist_ok=True)
+
 # set dov experiment
 boundary = lsuq.Boundary(
     lsuq.ConvexHull([lsuq.Point([0, 0]), lsuq.Point([1, 0]), lsuq.Point([0, 1]), lsuq.Point([1, 1])]))
@@ -24,4 +30,4 @@ activities = lsuq.Activities()
 activities.add_validation(val)
 
 # Save as XML
-lsuq.save_xml("pylsuq/dov.xml", val)
+lsuq.save_xml(output_dir / "dov.xml", val)
