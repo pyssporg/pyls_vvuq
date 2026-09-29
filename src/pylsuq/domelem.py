@@ -173,7 +173,7 @@ class DomElem:
                     try:
                         elem.append(value.to_xml(ns=child_ns))
                     except AttributeError as e:
-                        raise AttributeError(f"Tried to write child {field_.name}, object {value} has no to_xml method") from e
+                        raise AttributeError(f"{type(self)}: Tried to write child {field_.name}, object {value} has no to_xml method") from e
 
         return elem
 
