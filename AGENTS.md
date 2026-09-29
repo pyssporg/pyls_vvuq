@@ -1,8 +1,8 @@
 # AGENTS.md - pylsuq
 
 ## Workflow
-- **Installation**: `pip install -e .`
-- **Testing**: No formal test runner. Verify changes by creating small scripts or using files in `examples/`.
+- **Installation**: `pip install -e .` (add `.[dev]` for test dependencies)
+- **Testing**: Run `pytest` (uses the project's venv). Test suite lives in `tests/` and covers the core XML ↔ dataclass layer (`domelem.py`): `test_deserialization.py` (`from_xml`), `test_serialization.py` (`to_xml`) and `test_io.py` (`load_xml`/`save_xml`). Examples in `examples/` can be used for further manual verification.
 
 ## Core Logic: XML ↔ Python
 - **`DomElem`**: Base class for any dataclass intended to map to an XML element.
