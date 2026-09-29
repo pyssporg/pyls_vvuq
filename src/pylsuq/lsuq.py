@@ -8,9 +8,13 @@ from lxml import etree as et
 
 from pylsuq.domelem import DomElem, xml_metadata, xml_attr
 from pylsuq.ssc import ATopLevelMetaData
-
+#print("xml_metadata:", xml_metadata)
+#print("xml_metadata():", xml_metadata())
 UQ_NAMESPACE = "http://openscaling.org/UQ1/UncertaintyQuantification"
 et.register_namespace("uq", UQ_NAMESPACE)
+
+class UQElem(DomElem):
+    NS: ClassVar[str | None] = UQ_NAMESPACE
 
 
 # ============================================================================
@@ -25,8 +29,7 @@ class TypedOperationalDomainKind(Enum):
 
 
 @dataclass
-class CredibilityAssessment:
-    """Links credibility level to purpose and requirements"""
+class CredibilityAssessment(UQElem):
     level: str
     purpose: str | None = None
     standard: str | None = None
@@ -34,7 +37,7 @@ class CredibilityAssessment:
 
 
 @dataclass
-class ProcessContext:
+class ProcessContext(UQElem):
     """Process and phase context for an artifact"""
     process: str | None = None
     phase: str | None = None
@@ -43,7 +46,7 @@ class ProcessContext:
 
 
 @dataclass
-class TypedOperationalDomain:
+class TypedOperationalDomain(UQElem):
     """Domain with semantic metadata: kind, hierarchy, and credibility."""
     id: str
     kind: TypedOperationalDomainKind
@@ -73,7 +76,7 @@ class TypedOperationalDomain:
 
 
 @dataclass
-class ActivityDomain:
+class ActivityDomain(UQElem):
     """
     Domain scoped to a specific activity (DoVerification, DoCalibration, DoV, DoSA, DoUQ).
     A sub-region of parent ModelOD with its own boundary.
@@ -103,7 +106,7 @@ class ActivityDomain:
 
 
 @dataclass
-class Domains:
+class Domains(UQElem):
     """Top-level container for all domain definitions"""
     typed_operational_domains: list[TypedOperationalDomain] = field(default_factory=list)
     activity_domains: list[ActivityDomain] = field(default_factory=list)
@@ -117,8 +120,6 @@ class Domains:
         self.activity_domains.append(domain)
 
 
-class UQElem(DomElem):
-    NS: ClassVar[str | None] = UQ_NAMESPACE
 
 
 @dataclass
@@ -133,7 +134,7 @@ class Point(UQElem):
 
 
 @dataclass
-class Parameter:
+class Parameter(UQElem):
     """Deterministic parameter."""
     name: str
     value: str | int | float | bool
@@ -166,13 +167,13 @@ class UncertainParameter(UQElem):
 
 @dataclass
 class Parameters(UQElem):
-    uncertain_parameters: list[UncertainParameter] = field(default_factory=list)
+    uncertain_parameters: list[UncertainParameter] = field(default_factory=list, metadata=xml_metadata())
     id: str | None = field(default=None, metadata=xml_attr())
 
 
 @dataclass
 class Points(UQElem, MutableSequence):
-    points: list[Point] = field(default_factory=list)
+    points: list[Point] = field(default_factory=list, metadata=xml_metadata())
 
     def __getitem__(self, idx):
         return self.points[idx]
@@ -192,8 +193,8 @@ class Points(UQElem, MutableSequence):
 
 @dataclass
 class PointSet(UQElem, MutableSequence):
-    points: Points
-    parameters: Parameters
+    points: Points = field(metadata=xml_metadata())
+    parameters: Parameters = field(metadata=xml_metadata())
     id: str = field(metadata=xml_attr())
 
     def __getitem__(self, idx):
@@ -211,10 +212,9 @@ class PointSet(UQElem, MutableSequence):
     def insert(self, idx, value):
         self.points.insert(idx, value)
 
-
 @dataclass
 class ExperimentPoints(UQElem, MutableSequence):
-    point_sets: list[PointSet] = field(default_factory=list)
+    point_sets: list[PointSet] = field(default_factory=list, metadata=xml_metadata())
 
     def __getitem__(self, idx):
         return self.point_sets[idx]
@@ -234,7 +234,7 @@ class ExperimentPoints(UQElem, MutableSequence):
 
 @dataclass
 class Box(UQElem, MutableSequence):
-    points: list[Point] = field(default_factory=list)
+    points: list[Point] = field(default_factory=list, metadata=xml_metadata())
 
     def __getitem__(self, idx):
         return self.points[idx]
@@ -254,7 +254,7 @@ class Box(UQElem, MutableSequence):
 
 @dataclass
 class ConvexHull(UQElem, MutableSequence):
-    points: list[Point] = field(default_factory=list)
+    points: list[Point] = field(default_factory=list, metadata=xml_metadata())
 
     def __getitem__(self, idx):
         return self.points[idx]
@@ -286,7 +286,7 @@ class Axis(UQElem):
 
 @dataclass
 class Axes(UQElem, MutableSequence):
-    axes: list[Axis] = field(default_factory=list)
+    axes: list[Axis] = field(default_factory=list,metadata=xml_metadata())
 
     def __getitem__(self, idx):
         return self.axes[idx]
@@ -335,7 +335,7 @@ class ObservedVariables(UQElem, MutableSequence):
     Container for multiple observed variables in a UQ activity.
     Implements MutableSequence for list-like operations on variables.
     """
-    observed_variables: list[ObservedVariable] = field(default_factory=list)
+    observed_variables: list[ObservedVariable] = field(default_factory=list, metadata=xml_metadata())
 
     def __getitem__(self, idx: int) -> ObservedVariable:
         """Get an observed variable by index."""
@@ -400,11 +400,11 @@ class Results(UQElem):
 @dataclass
 class ResultSet(UQElem):
     """Container for multiple Results elements."""
-    results: list[Results] = field(default_factory=list)
+    results: list[Results] = field(default_factory=list, metadata=xml_metadata())
 
 
 @dataclass
-class ActivitySettings:
+class ActivitySettings(UQElem):
     """Settings for an activity."""
     method: str | None = None
     description: str | None = None
@@ -470,7 +470,7 @@ class Activities(UQElem, MutableSequence):
         id: Optional identifier
         credibility_level: Optional credibility level for all activities
     """
-    activities: list = field(default_factory=list)
+    activities: list = field(default_factory=list, metadata=xml_metadata())
     id: str | None = field(default=None, metadata=xml_attr())
     #credibility_level: str | None = field(
     #    default=None,
