@@ -12,6 +12,7 @@ import pytest
 from lxml import etree as et
 
 from pylsuq.domelem import DomElem, xml_attr, xml_metadata
+from pylsuq.errors import XmlMappingError
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +271,7 @@ class BrokenParent(DomElem):
 
 
 class TestNonDomElemChild:
-    def test_missing_to_xml_raises_attribute_error(self):
+    def test_missing_to_xml_raises_mapping_error(self):
         obj = BrokenParent(child=PlainChild(x="y"))
-        with pytest.raises(AttributeError, match="no attribute 'to_xml'"):
+        with pytest.raises(XmlMappingError, match=r"BrokenParent\.child"):
             obj.to_xml()

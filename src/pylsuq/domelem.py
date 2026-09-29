@@ -9,6 +9,7 @@ from pathlib import Path
 from lxml import etree as et
 
 from pylsuq.context import Context
+from pylsuq.errors import XmlMappingError, mapping_error
 
 
 METADATA_KEY = "pylsuq"
@@ -82,11 +83,12 @@ def _read_attr(field_, metadata, elem):
     else:
         deserialize = deserialize or field_.type
         value = elem.get(name)
-        if value is None:  # Absent attribute: fall back to the field default
+        if value is None:  # Absent attribute
             if field_.default is not MISSING:
                 return field_.default
             if field_.default_factory is not MISSING:
                 return field_.default_factory()
+            raise XmlMappingError(f"Missing required attribute {name!r}")
         return deserialize(value)
 
 
@@ -116,7 +118,37 @@ def _read_child(field_, metadata, elem, ns=None):
             return None
     else:
         tag = field_.type.tag(ns=ns, use_class_ns=metadata.use_class_ns)
-        return field_.type.from_xml(elem.find(tag))
+        child = elem.find(tag)
+        if child is None:
+            raise XmlMappingError(f"Missing required element <{tag}>")
+        return field_.type.from_xml(child)
+
+
+def _write_attr(obj, field_, metadata, elem):
+    value = getattr(obj, field_.name)
+    if not has_default_value(field_, value):
+        name = metadata.name or field_.name
+        elem.set(name, metadata.serialize(value))
+
+
+def _write_child(obj, field_, metadata, elem):
+    value = getattr(obj, field_.name)
+
+    if get_origin(field_.type) is list:
+        type_ = get_args(field_.type)[0]
+        child_ns = type_.NS if metadata.use_class_ns else obj.NS
+        elem.extend([e.to_xml(ns=child_ns) for e in value])
+    elif is_optional(field_.type):
+        if value is not None:
+            child_ns = value.NS if metadata.use_class_ns else obj.NS
+            elem.append(value.to_xml(ns=child_ns))
+    elif is_union(field_.type):
+        if value is not None:
+            child_ns = value.NS if metadata.use_class_ns else obj.NS
+            elem.append(value.to_xml(ns=child_ns))
+    else:
+        child_ns = value.NS if metadata.use_class_ns else obj.NS
+        elem.append(value.to_xml(ns=child_ns))
 
 
 class DomElem:
@@ -132,15 +164,15 @@ class DomElem:
         args = {}
 
         for field_ in fields(cls):
-            if METADATA_KEY in field_.metadata:
-                metadata = field_.metadata[METADATA_KEY]
-            else:
-                metadata = FieldMetadata()
+            metadata = field_.metadata.get(METADATA_KEY, FieldMetadata())
 
-            if metadata.is_attr:
-                args[field_.name] = _read_attr(field_, metadata, elem)
-            else:
-                args[field_.name] = _read_child(field_, metadata, elem, ns)
+            try:
+                if metadata.is_attr:
+                    args[field_.name] = _read_attr(field_, metadata, elem)
+                else:
+                    args[field_.name] = _read_child(field_, metadata, elem, ns)
+            except Exception as e:
+                raise mapping_error("read", cls, field_, metadata, e) from e
 
         return cls(**args)
 
@@ -150,34 +182,15 @@ class DomElem:
         elem = et.Element(self.tag(ns=ns), nsmap=NSMAP)
 
         for field_ in fields(self):
-            if METADATA_KEY in field_.metadata:
-                metadata = field_.metadata[METADATA_KEY]
-            else:
-                metadata = FieldMetadata()
+            metadata = field_.metadata.get(METADATA_KEY, FieldMetadata())
 
-            value = getattr(self, field_.name)
-
-            if metadata.is_attr:
-                name = metadata.name or field_.name
-                if not has_default_value(field_, value):
-                    elem.set(name, metadata.serialize(value))
-            else:
-                if get_origin(field_.type) is list:
-                    type_ = get_args(field_.type)[0]
-                    child_ns = type_.NS if metadata.use_class_ns else self.NS
-                    elem.extend([e.to_xml(ns=child_ns) for e in value])
-                elif is_optional(field_.type):
-                    if value is not None:
-                        child_ns = value.NS if metadata.use_class_ns else self.NS
-                        elem.append(value.to_xml(ns=child_ns))
-                elif is_union(field_.type):
-                    if value is not None:
-                        child_ns = value.NS if metadata.use_class_ns else self.NS
-                        elem.append(value.to_xml(ns=child_ns))
+            try:
+                if metadata.is_attr:
+                    _write_attr(self, field_, metadata, elem)
                 else:
-                    value = getattr(self, field_.name)
-                    child_ns = value.NS if metadata.use_class_ns else self.NS
-                    elem.append(value.to_xml(ns=child_ns))
+                    _write_child(self, field_, metadata, elem)
+            except Exception as e:
+                raise mapping_error("write", type(self), field_, metadata, e) from e
 
         return elem
 
@@ -215,12 +228,11 @@ _doctype_registry = {}
 
 def load_xml(path: str | Path):
     tree = et.parse(path)
-    
     root = tree.getroot()
-    
+
     obj = _doctype_registry[root.tag].from_xml(root)
     obj._ctx["path"] = path
-    
+
     return obj
 
 

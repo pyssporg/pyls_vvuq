@@ -33,6 +33,7 @@ from pylsuq.lsuq import (
 )
 
 from pylsuq.domelem import load_xml, save_xml
+from pylsuq.errors import XmlMappingError
 
 __all__ = [
     "Activities",
@@ -66,6 +67,7 @@ __all__ = [
     "UncertaintyQuantification",
     "Validation",
     "Verification",
+    "XmlMappingError",
     "load_xml",
     "save_xml",
 ]
