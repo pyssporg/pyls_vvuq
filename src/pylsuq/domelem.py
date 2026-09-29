@@ -4,6 +4,7 @@ from typing import Union, Any, Optional, ClassVar, get_args, get_origin
 import types
 from dataclasses import dataclass, field, fields, MISSING, InitVar
 from operator import attrgetter
+from pathlib import Path
 
 from lxml import etree as et
 
@@ -209,18 +210,18 @@ class DomElem:
 _doctype_registry = {}
 
 
-def load_xml(path):
+def load_xml(path: str | Path):
     tree = et.parse(path)
-
+    
     root = tree.getroot()
-
+    
     obj = _doctype_registry[root.tag].from_xml(root)
     obj._ctx["path"] = path
-
+    
     return obj
 
 
-def save_xml(path, elem, pretty_print=True):
+def save_xml(path: str | Path, elem, pretty_print=True):
     xml_elem = elem.to_xml()
     et.cleanup_namespaces(xml_elem)
     with open(path, "w") as f:
