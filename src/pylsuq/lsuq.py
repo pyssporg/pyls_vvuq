@@ -596,11 +596,6 @@ class UncertaintyQuantification(UQElem):
     classifications: list[str] = field(default_factory=list)
     annotations: Annotations | None = None
 
-    def __post_init__(self):
-        """Validate that name is provided."""
-        if not self.name:
-            raise ValueError("UncertaintyQuantification.name is required")
-
     def set_domains(self, domains: Domains) -> None:
         """Set the Domains container."""
         self.domains = domains
