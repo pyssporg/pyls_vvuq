@@ -53,9 +53,6 @@ def field_hint(field_, metadata) -> str:
                     "field metadata raised this error")
         return ""
 
-    if get_origin(field_.type) is dict:
-        return "dict fields can only be deserialized so far; serialization is not implemented"
-
     type_ = _declared_child_type(field_)
     if isinstance(type_, type) and not hasattr(type_, "from_xml"):
         return (f"{type_.__name__!r} is not a DomElem subclass; make it "

@@ -133,11 +133,21 @@ class DictParent(DomElem):
 
 
 class TestDictChildren:
-    @pytest.mark.xfail(reason="to_xml has no branch for dict fields")
-    def test_dict_children_serialize(self):
-        obj = DictParent(children={"a": Child("a")})
+    """Dict keys are not written: they are re-derived from the values
+    with metadata.key_fn when the XML is read back."""
+
+    def test_writes_one_element_per_value(self):
+        obj = DictParent(children={"a": Child("a"), "b": Child("b")})
         elem = obj.to_xml()
-        assert [c.get("name") for c in elem.findall("Child")] == ["a"]
+        assert [c.get("name") for c in elem.findall("Child")] == ["a", "b"]
+
+    def test_empty_dict_writes_no_elements(self):
+        elem = DictParent().to_xml()
+        assert elem.findall("Child") == []
+
+    def test_round_trip_recovers_keys(self):
+        obj = DictParent(children={"a": Child("a"), "b": Child("b")})
+        assert DictParent.from_xml(obj.to_xml()) == obj
 
 
 @dataclass

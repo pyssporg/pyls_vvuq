@@ -123,13 +123,15 @@ class TestSerializationDiagnostics:
         with pytest.raises(XmlMappingError, match=r"hint:.*custom"):
             BadSerializer(value="x").to_xml()
 
-    def test_dict_field_serialization_gets_hint(self):
+    def test_non_domelem_dict_value_hint_suggests_xml_attr(self):
         @dataclass
         class DictHolder(DomElem):
-            children: dict[str, Child] = field(default_factory=dict)
+            children: dict[str, str] = field(default_factory=dict)
 
-        obj = DictHolder(children={"c": Child("c", 1)})
-        with pytest.raises(XmlMappingError, match=r"hint:.*dict fields"):
+        obj = DictHolder(children={"c": "value"})
+        with pytest.raises(
+            XmlMappingError, match=r"hint:.*not a DomElem subclass"
+        ):
             obj.to_xml()
 
     def test_original_error_is_preserved_as_cause(self):

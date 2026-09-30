@@ -138,6 +138,12 @@ def _write_child(obj, field_, metadata, elem):
         type_ = get_args(field_.type)[0]
         child_ns = type_.NS if metadata.use_class_ns else obj.NS
         elem.extend([e.to_xml(ns=child_ns) for e in value])
+    elif get_origin(field_.type) is dict:
+        # Keys are redundant: they are derived from the values with
+        # metadata.key_fn on deserialization, so only values are written.
+        type_ = get_args(field_.type)[1]
+        child_ns = type_.NS if metadata.use_class_ns else obj.NS
+        elem.extend([e.to_xml(ns=child_ns) for e in value.values()])
     elif is_optional(field_.type):
         if value is not None:
             child_ns = value.NS if metadata.use_class_ns else obj.NS
