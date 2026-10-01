@@ -6,12 +6,18 @@ from pylsuq.lsuq import (
     Box,
     Boundary,
     Calibration,
+    Cauchy,
+    CauchyTolerance,
     ConvexHull,
     Domains,
     ErrorMetric,
     ExperimentPoints,
     ForwardUncertaintyQuantification,
-    Model,
+    GDistribution,
+    Model,    
+    MonotoneSplineCDF,
+    Normal,
+    NormalTolerance,
     ObservedVariable,
     ObservedVariables,
     OperationalDomain,
@@ -28,8 +34,12 @@ from pylsuq.lsuq import (
     TypedOperationalDomainKind,
     UncertainParameter,
     UncertaintyQuantification,
+    Uniform,
+    UniformTolerance,
     Validation,
     Verification,
+    Weibull
+    
 )
 
 from pylsuq.domelem import load_xml, save_xml

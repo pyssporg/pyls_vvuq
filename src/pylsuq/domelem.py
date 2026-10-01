@@ -5,7 +5,7 @@ import types
 from dataclasses import dataclass, field, fields, MISSING, InitVar
 from operator import attrgetter
 from pathlib import Path
-
+from enum import Enum
 from lxml import etree as et
 
 from pylsuq.context import Context
@@ -32,6 +32,10 @@ def xml_metadata(**kwargs):
 def xml_attr(**kwargs):
     return xml_metadata(is_attr=True, **kwargs)
 
+def xml_attr_value(value):    
+    if isinstance(value,Enum):
+        return value.value
+    return value
 
 NSMAP = {}
 
@@ -124,8 +128,13 @@ def _read_child(field_, metadata, elem, ns=None):
         return field_.type.from_xml(child)
 
 
+
+
 def _write_attr(obj, field_, metadata, elem):
-    value = getattr(obj, field_.name)
+    value = getattr(obj, field_.name)    
+    
+    value = xml_attr_value(value)
+    
     if not has_default_value(field_, value):
         name = metadata.name or field_.name
         elem.set(name, metadata.serialize(value))
@@ -133,8 +142,8 @@ def _write_attr(obj, field_, metadata, elem):
 
 def _write_child(obj, field_, metadata, elem):
     value = getattr(obj, field_.name)
-
     if get_origin(field_.type) is list:
+        
         type_ = get_args(field_.type)[0]
         child_ns = type_.NS if metadata.use_class_ns else obj.NS
         elem.extend([e.to_xml(ns=child_ns) for e in value])
@@ -151,7 +160,7 @@ def _write_child(obj, field_, metadata, elem):
     elif is_union(field_.type):
         if value is not None:
             child_ns = value.NS if metadata.use_class_ns else obj.NS
-            elem.append(value.to_xml(ns=child_ns))
+            elem.append(value.to_xml(ns=child_ns))    
     else:
         child_ns = value.NS if metadata.use_class_ns else obj.NS
         elem.append(value.to_xml(ns=child_ns))
@@ -189,7 +198,7 @@ class DomElem:
 
         for field_ in fields(self):
             metadata = field_.metadata.get(METADATA_KEY, FieldMetadata())
-
+            
             try:
                 if metadata.is_attr:
                     _write_attr(self, field_, metadata, elem)
