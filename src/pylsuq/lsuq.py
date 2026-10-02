@@ -1,6 +1,6 @@
 # from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import ClassVar
+from typing import ClassVar, TypeAlias
 from collections.abc import MutableSequence
 from enum import Enum
 
@@ -26,6 +26,7 @@ class TypedOperationalDomainKind(Enum):
     OPERATIONAL_DESIGN_DOMAIN = "OperationalDesignDomain"
     REQUESTED_OPERATIONAL_DOMAIN = "RequestedOperationalDomain"
     MODELED_OPERATIONAL_DOMAIN = "ModeledOperationalDomain"
+
 
 
 # ============================================================================
@@ -102,7 +103,6 @@ class ErrorMetric(UQElem):
         metadata=xml_attr(name="observedVariable")
     )
 
-
 @dataclass
 class ActivitySettings(UQElem):
     """Settings for an activity."""
@@ -130,31 +130,153 @@ class RequiredAssumptions(UQElem):
     id: str | None = None
     description: str | None = None
 
+    
+# ============================================================================
+# DISTRIBUTIONS
+# ============================================================================
+ 
+@dataclass
+class Normal(UQElem):
+    """Normal distribution."""
+    mu: float = field(metadata=xml_attr())
+    sigma: float = field(metadata=xml_attr())
+    minimum: float | None = field(default=None, metadata=xml_attr())
+    maximum: float | None = field(default=None, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class NormalTolerance(UQElem):
+    """Tolerance form of Normal distribution."""
+    nominal: float = field(metadata=xml_attr())
+    relTol: float = field(default=0.0, metadata=xml_attr())
+    absTol: float = field(default=0.0, metadata=xml_attr())
+    sigmaFactor: float = field(default=3.0, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class Uniform(UQElem):
+    """Continuous uniform distribution."""
+    minimum: float = field(metadata=xml_attr())
+    maximum: float = field(metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class UniformTolerance(UQElem):
+    """Tolerance form of Uniform distribution."""
+    nominal: float = field(metadata=xml_attr())
+    relTol: float = field(default=0.0, metadata=xml_attr())
+    absTol: float = field(default=0.0, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class Weibull(UQElem):
+    """Weibull distribution."""
+    shape: float = field(metadata=xml_attr())
+    scale: float = field(metadata=xml_attr())
+    maximum: float | None = field(default=None, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class Cauchy(UQElem):
+    """Cauchy distribution."""
+    x0: float = field(metadata=xml_attr())
+    gamma: float = field(metadata=xml_attr())
+    minimum: float | None = field(default=None, metadata=xml_attr())
+    maximum: float | None = field(default=None, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class CauchyTolerance(UQElem):
+    """Tolerance form of Cauchy distribution."""
+    nominal: float = field(metadata=xml_attr())
+    relTol: float = field(default=0.0, metadata=xml_attr())
+    absTol: float = field(default=0.0, metadata=xml_attr())
+    boundaryProbability: float = field(default=0.997, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class MonotoneSplineCDF(UQElem):
+    """Monotone spline cumulative distribution function."""
+    x: list[float] = field(
+        metadata=xml_attr(
+            serialize=lambda cs: " ".join(str(c) for c in cs),
+            deserialize=lambda s: [float(c) for c in s.strip().split()],
+        ))
+    y: list[float] = field(
+        metadata=xml_attr(
+            serialize=lambda cs: " ".join(str(c) for c in cs),
+            deserialize=lambda s: [float(c) for c in s.strip().split()],
+        ))
+    degree: int = field(default=3, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+# Group of Distributions
+GDistribution: TypeAlias = (     
+    Normal
+    | NormalTolerance
+    | Uniform
+    | UniformTolerance
+    | Weibull
+    | Cauchy
+    | CauchyTolerance
+    | MonotoneSplineCDF
+)
+
+
+
 
 # ============================================================================
 # COLLECTION CLASSES (depend on leaf classes)
-# ============================================================================
+# ============================================================================    
 
 @dataclass
 class UncertainParameter(UQElem):
     """Parameter with uncertainty."""
-    name: str = field(metadata=xml_attr())
-    distribution: str = field(metadata=xml_attr())
-    mean: float | None = field(default=None, metadata=xml_attr())
-    stdDev: float | None = field(default=None, metadata=xml_attr())
-    min: float | None = field(default=None, metadata=xml_attr())
-    max: float | None = field(default=None, metadata=xml_attr())
-
-    def to_dict(self) -> dict:
-        return {
-            'name': self.name,
-            'distribution': self.distribution,
-            'mean': self.mean,
-            'stdDev': self.stdDev,
-            'min': self.min,
-            'max': self.max,
-        }
-
+    distribution: GDistribution
+    name: str = field(metadata=xml_attr())    
+    id: str | None = field(default = None,metadata=xml_attr())
+    description: str | None = field(default = None,metadata=xml_attr())
+    
+    
 
 @dataclass
 class Points(UQElem, MutableSequence):
@@ -282,6 +404,7 @@ class Results(UQElem):
     Supports external data sources via AExternalSource.
     """
     error_metrics: list[ErrorMetric] = field(default_factory=list)
+    distributions: list[GDistribution] = field(default_factory=list)
     point: str | None = field(default=None, metadata=xml_attr())
     source: str | None = field(default=None, metadata=xml_attr())
     type: str | None = field(default=None, metadata=xml_attr())
@@ -378,8 +501,8 @@ class ParameterSet(UQElem):
 @dataclass
 class TypedOperationalDomain(UQElem):
     """Domain with semantic metadata: kind, hierarchy, and credibility."""
-    id: str
-    kind: TypedOperationalDomainKind
+    id: str = field(metadata=xml_attr())
+    kind: TypedOperationalDomainKind = field(metadata=xml_attr())
     name: str | None = None
     geometryKind: str | None = None
     parentRef: str | None = None
@@ -456,9 +579,13 @@ class Domains(UQElem):
 
 @dataclass
 class ForwardUncertaintyQuantification(UQElem):
-    parameter_set: ParameterSet
+    parameter_set: ParameterSet | None = None
     observed_variables: ObservedVariables | None = None
     result_set: ResultSet | None = None
+    activity_domain_ref: str | None = field(
+        default=None,
+        metadata=xml_attr(name="activityDomainRef")
+    )
 
 
 @dataclass
@@ -501,7 +628,7 @@ class Activities(UQElem, MutableSequence):
     Activities can be interspersed in any order (Verification, Calibration,
     Validation, SensitivityAnalysis, ForwardUncertaintyQuantification).
     """
-    activities: list = field(default_factory=list)
+    activities: list[ForwardUncertaintyQuantification | Verification | Validation | Calibration | SensitivityAnalysis] = field(default_factory=list)
     id: str | None = field(default=None, metadata=xml_attr())
 
     def __getitem__(self, idx: int):
@@ -584,7 +711,7 @@ class UncertaintyQuantification(UQElem):
     """
     Root element of the UQ1 schema.
     """
-    name: str
+    name: str = field(metadata=xml_attr())
     info: str | None = None
     requiredAssumptionsRefs: str | None = None
     stmdRef: str | None = None
