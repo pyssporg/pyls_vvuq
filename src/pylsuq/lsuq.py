@@ -275,7 +275,8 @@ class UncertainParameter(UQElem):
     name: str = field(metadata=xml_attr())    
     id: str | None = field(default = None,metadata=xml_attr())
     description: str | None = field(default = None,metadata=xml_attr())
-    
+    source: str | None = field(default = None,metadata=xml_attr())
+    sourceInfo: str | None = field(default = None,metadata=xml_attr())    
     
 
 @dataclass
@@ -534,12 +535,12 @@ class ActivityDomain(UQElem):
     Domain scoped to a specific activity (DoVerification, DoCalibration, DoV, DoSA, DoUQ).
     A sub-region of parent ModelOD with its own boundary.
     """
-    id: str
-    kind: str
-    name: str | None = None
-    domainRef: str | None = None
-    srmdRef: str | None = None
-    description: str | None = None
+    id: str = field(metadata=xml_attr())
+    kind: str = field(metadata=xml_attr())
+    name: str | None = field(default = None,metadata=xml_attr())
+    domainRef: str | None = field(default = None,metadata=xml_attr())
+    srmdRef: str | None = field(default = None,metadata=xml_attr())
+    #description: str | None = None
     axes: Axes | None = None
     boundary: Boundary | None = None
     experiment_points: ExperimentPoints | None = None
@@ -713,6 +714,7 @@ class UncertaintyQuantification(UQElem):
     """
     name: str = field(metadata=xml_attr())
     info: str | None = None
+    topLevelMetaData: ATopLevelMetaData | None = field(default=None, metadata=xml_metadata(use_class_ns=True))
     requiredAssumptionsRefs: str | None = None
     stmdRef: str | None = None
     srmdRef: str | None = None

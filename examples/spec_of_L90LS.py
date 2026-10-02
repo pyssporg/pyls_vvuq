@@ -5,7 +5,7 @@ from pathlib import Path
 output_dir = Path(__file__).parent / "output"
 output_dir.mkdir(parents=True, exist_ok=True)
 
-# Model info
+# Set model info
 model = lsuq.Model(name = 'valve_model',file = 'L90LS_UD_OS_OS.fmu')
 
 # set axis
@@ -49,13 +49,18 @@ observedvariables = lsuq.ObservedVariables(observed_variables = [lsuq.ObservedVa
 p0 = lsuq.Point(coordinates=[0, 350, 200, 1, 1, 20, 20, 1, 1, 1, 35], id='P0')
 p1 = lsuq.Point(coordinates=[0, 400, 200, 1, 1, 20, 20, 1, 1, 1, 35], id='P1')
 points = lsuq.Points([p0, p1])
-pointset = lsuq.PointSet(points, id='DoUQ_1', parameters=observedvariables)
+pointset = lsuq.PointSet(points, id='PointSet0', parameters=observedvariables)
 experiment_points = lsuq.ExperimentPoints(point_sets=[pointset])
 
 # Define uncertain parameter of experiment
 uncrtKqGain1_MI = lsuq.UncertainParameter(distribution = lsuq.Normal(mu = 1, sigma = 0.1),name = 'KqMI_PBAT_gain')
 parameters = lsuq.Parameters(uncertain_parameters = [uncrtKqGain1_MI])
-parameterset = lsuq.ParameterSet(operational_domain = experiment_points, parameters = parameters)
+parameterset = lsuq.ParameterSet(parameters = parameters)
+
+# Define as an acitivity domain
+DoUQ_1 = lsuq.ActivityDomain(id = 'DoUQ_1', name ='DoUQ_1', kind = 'UncertaintyQuantification', domainRef = od.id ,experiment_points = experiment_points )
+domains.add_activity_domain(DoUQ_1)
+
 
 # Experiment results
 p0exp_qA = lsuq.Normal(mu = -0.063, sigma = 0.0028, minimum = -0.07,maximum = -0.057,observed_variable='qA')
@@ -69,11 +74,11 @@ p1Dist = lsuq.Results(distributions=[p1exp_qA,p1exp_qB],point = 'P1')
 result_set = lsuq.ResultSet(results=[p0Dist,p1Dist])
 
 # Combine everything in the fwduq activity
-uq_activity = lsuq.ForwardUncertaintyQuantification(parameter_set=parameterset,result_set = result_set)
+uq_activity = lsuq.ForwardUncertaintyQuantification(parameter_set=parameterset,result_set = result_set,activity_domain_ref = 'DoUQ_1')
 activities = lsuq.Activities()
 activities.add_forward_uq(uq_activity)
 
 # Create full file
-UQout = lsuq.UncertaintyQuantification(name='test',activities = activities,domains = domains,model=model)
-
+topLevelMetaData = lsuq.ATopLevelMetaData(author = 'Viktor larsson')
+UQout = lsuq.UncertaintyQuantification(name='test',activities = activities,domains = domains,model=model,topLevelMetaData=topLevelMetaData)
 lsuq.save_xml(output_dir / "L90LS_UD_OS_OS_UQ.xml", UQout)

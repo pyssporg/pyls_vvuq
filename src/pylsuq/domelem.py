@@ -255,4 +255,4 @@ def save_xml(path: str | Path, elem, pretty_print=True):
     xml_elem = elem.to_xml()
     et.cleanup_namespaces(xml_elem)
     with open(path, "w") as f:
-        f.write(et.tostring(xml_elem, encoding=str, pretty_print=True))
+        f.write(et.tostring(xml_elem, encoding=str, pretty_print=pretty_print))

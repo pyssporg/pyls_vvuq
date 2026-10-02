@@ -10,9 +10,13 @@ from pylsuq.domelem import DomElem, xml_metadata, xml_attr, register_namespace
 SSC_NS = "http://ssp-standard.org/SSP1/SystemStructureCommon"
 register_namespace("ssc", SSC_NS)
 
+class SSCElem(DomElem):
+    NS: ClassVar[str | None] = SSC_NS
+
 
 @dataclass
-class ATopLevelMetaData:
+class ATopLevelMetaData(SSCElem):
+    NS: ClassVar[str | None] = SSC_NS
     _: KW_ONLY
     author: str | None = field(default=None, metadata=xml_attr())
     file_version: str | None = field(default=None, metadata=xml_attr(name="fileversion"))
@@ -27,8 +31,9 @@ class ATopLevelMetaData:
             serialize=datetime.isoformat,
         ),
     )
-
+    
     def __post_init__(self):
+        super().__post_init__()
         if self.generation_tool is None:
             self.generation_tool = "pylsuq"
 

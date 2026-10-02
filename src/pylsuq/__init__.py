@@ -41,7 +41,7 @@ from pylsuq.lsuq import (
     Weibull
     
 )
-
+from pylsuq.ssc import ATopLevelMetaData
 from pylsuq.domelem import load_xml, save_xml
 from pylsuq.errors import XmlMappingError
 
