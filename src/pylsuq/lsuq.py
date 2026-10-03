@@ -130,6 +130,15 @@ class RequiredAssumptions(UQElem):
     id: str | None = None
     description: str | None = None
 
+     
+
+    
+@dataclass
+class KeyValue(UQElem):
+    """KeyValue type"""
+    key: str | None = field(metadata=xml_attr())
+    value: str | None = field(metadata=xml_attr())
+    
     
 # ============================================================================
 # DISTRIBUTIONS
@@ -418,7 +427,46 @@ class Results(UQElem):
         """Set reference to a point by ID."""
         self.point = point_id
 
+@dataclass
+class KeyValues(UQElem):
+    type: str = field(metadata = xml_attr())
+    key_values : list[KeyValue] = field(default_factory=list) 
 
+@dataclass
+class PseudoRandom(UQElem):
+    """Pseudo random sampling type"""
+    numberOfSamples: int = field(metadata = xml_attr())
+    key_values: KeyValues | None = None
+    annotations: Annotations | None = None
+  
+@dataclass
+class LatinHypercube(UQElem):
+    """Latin Hypercube random sampling type"""
+    numberOfSamples: int = field(metadata = xml_attr())
+    key_values: KeyValues | None = None
+    annotations: Annotations | None = None
+    
+@dataclass
+class VendorSpecific(UQElem):
+    """Placeholder for vendor specific type"""
+    keyvalues: KeyValues | None = None
+    annotations: Annotations | None = None
+
+@dataclass
+class SamplingMethod(UQElem):
+    sampling_methods: list[PseudoRandom | LatinHypercube | VendorSpecific] = field(default_factory=list)
+    def add_pseudo_random(self, pseudorandom: PseudoRandom) -> None:
+        """Add a pseudo random sampling method"""
+        self.sampling_methods.append(pseudorandom)
+    
+    def add_latin_hypercube(self, latinhypercube: LatinHypercube) -> None:
+        """Add a latin hypercube sampling method"""
+        self.sampling_methods.append(latinhypercube)
+    
+    def add_vendor_specific(self, vendorspecific: VendorSpecific) -> None:
+        """Add a vendor specific sampling method"""
+        self.sampling_methods.append(vendorspecific)
+            
 # ============================================================================
 # BOUNDARY TYPES
 # ============================================================================
@@ -495,6 +543,7 @@ class ParameterSet(UQElem):
     description: str | None = field(default=None, metadata=xml_attr())
 
 
+    
 # ============================================================================
 # DOMAIN HIERARCHY TYPES
 # ============================================================================
@@ -582,6 +631,7 @@ class Domains(UQElem):
 class ForwardUncertaintyQuantification(UQElem):
     parameter_set: ParameterSet | None = None
     observed_variables: ObservedVariables | None = None
+    sampling_method : SamplingMethod | None = None
     result_set: ResultSet | None = None
     activity_domain_ref: str | None = field(
         default=None,
@@ -592,7 +642,8 @@ class ForwardUncertaintyQuantification(UQElem):
 @dataclass
 class Verification(UQElem):
     parameter_set: ParameterSet
-    observed_variables: ObservedVariables | None = None
+    observed_variables: ObservedVariables | None = None  
+    sampling_method : SamplingMethod | None = None  
     id: str | None = field(default=None, metadata=xml_attr())
 
 
@@ -607,6 +658,7 @@ class Calibration(UQElem):
 class Validation(UQElem):
     parameter_set: ParameterSet
     observed_variables: ObservedVariables | None = None
+    sampling_method : SamplingMethod | None = None
     result_set: ResultSet | None = None
     id: str | None = field(default=None, metadata=xml_attr())
     activity_domain_ref: str | None = field(
@@ -619,6 +671,7 @@ class Validation(UQElem):
 class SensitivityAnalysis(UQElem):
     parameter_set: ParameterSet
     observed_variables: ObservedVariables | None = None
+    sampling_method : SamplingMethod | None = None
     id: str | None = field(default=None, metadata=xml_attr())
 
 

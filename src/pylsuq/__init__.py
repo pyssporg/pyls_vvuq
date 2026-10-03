@@ -14,6 +14,9 @@ from pylsuq.lsuq import (
     ExperimentPoints,
     ForwardUncertaintyQuantification,
     GDistribution,
+    KeyValue,
+    KeyValues,
+    LatinHypercube,
     Model,    
     MonotoneSplineCDF,
     Normal,
@@ -27,6 +30,8 @@ from pylsuq.lsuq import (
     Point,
     PointSet,
     Points,
+    PseudoRandom,
+    SamplingMethod,
     Results,
     ResultSet,
     SensitivityAnalysis,
@@ -38,6 +43,7 @@ from pylsuq.lsuq import (
     UniformTolerance,
     Validation,
     Verification,
+    VendorSpecific,
     Weibull
     
 )
