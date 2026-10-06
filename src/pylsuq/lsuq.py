@@ -15,6 +15,7 @@ et.register_namespace("uq", UQ_NAMESPACE)
 
 class UQElem(DomElem):
     NS: ClassVar[str | None] = UQ_NAMESPACE
+    
 
 
 # ============================================================================
@@ -388,7 +389,7 @@ class ConvexHull(UQElem, MutableSequence):
 
 
 @dataclass
-class Box(UQElem, MutableSequence):
+class HyperRectangle(UQElem, MutableSequence):
     points: list[Point] = field(default_factory=list)
 
     def __getitem__(self, idx):
@@ -473,7 +474,7 @@ class SamplingMethod(UQElem):
 
 @dataclass
 class Boundary(UQElem):
-    shape: ConvexHull | Box
+    shape: ConvexHull | HyperRectangle
 
 
 # ============================================================================
