@@ -50,6 +50,7 @@ from pylsuq.lsuq import (
 from pylsuq.ssc import ATopLevelMetaData
 from pylsuq.domelem import load_xml, save_xml
 from pylsuq.errors import XmlMappingError
+from pylsuq.domain_plotter import add_boundary_plot,add_domain_plot
 
 __all__ = [
     "Activities",
