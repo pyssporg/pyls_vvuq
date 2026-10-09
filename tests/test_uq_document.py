@@ -65,10 +65,7 @@ class TestUncertaintyQuantificationDocument:
 
 
 class TestDomainMetadataAttributes:
-    def test_typed_operational_domain_attributes(self):
-        # Note: from_xml of this class is still blocked by the unmapped
-        # `description` field (plain str treated as a child element), so
-        # only serialization is asserted here.
+    def test_typed_operational_domain_round_trip(self):
         obj = TypedOperationalDomain(
             id="OD1",
             kind=TypedOperationalDomainKind.OPERATIONAL_DESIGN_DOMAIN,
@@ -95,9 +92,11 @@ class TestDomainMetadataAttributes:
         assert (pc.get("process"), pc.get("phase"), pc.get("glueParticleRef")) == (
             "development", "P2", "GP7",
         )
+        assert TypedOperationalDomain.from_xml(elem) == obj
 
-    def test_activity_settings_method_is_attribute(self):
+    def test_activity_settings_round_trip(self):
         obj = ActivitySettings(method="Monte Carlo")
         elem = obj.to_xml()
         assert elem.get("method") == "Monte Carlo"
         assert elem.find("method") is None
+        assert ActivitySettings.from_xml(elem) == obj

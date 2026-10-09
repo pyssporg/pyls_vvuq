@@ -1,4 +1,3 @@
-# from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import ClassVar, TypeAlias
 from collections.abc import MutableSequence
@@ -53,22 +52,10 @@ class Axis(UQElem):
 
 
 @dataclass
-class Parameter(UQElem):
-    """Deterministic parameter."""
-    name: str
-    value: str | int | float | bool
-    unit: str | None = None
-
-    def to_dict(self) -> dict:
-        return {'name': self.name, 'value': self.value, 'unit': self.unit}
-
-
-@dataclass
 class CredibilityAssessment(UQElem):
     level: str = field(metadata=xml_attr())
     purpose: str | None = field(default=None, metadata=xml_attr())
     standard: str | None = field(default=None, metadata=xml_attr())
-    description: str | None = None
 
 
 @dataclass
@@ -77,7 +64,6 @@ class ProcessContext(UQElem):
     process: str | None = field(default=None, metadata=xml_attr())
     phase: str | None = field(default=None, metadata=xml_attr())
     glueParticleRef: str | None = field(default=None, metadata=xml_attr())
-    description: str | None = None
 
 
 @dataclass
@@ -108,15 +94,6 @@ class ErrorMetric(UQElem):
 class ActivitySettings(UQElem):
     """Settings for an activity."""
     method: str | None = field(default=None, metadata=xml_attr())
-    description: str | None = None
-    key_values: dict | None = None
-
-    def to_dict(self) -> dict:
-        return {
-            'method': self.method,
-            'description': self.description,
-            'key_values': self.key_values,
-        }
 
 
 @dataclass
@@ -131,16 +108,7 @@ class RequiredAssumptions(UQElem):
     id: str | None = None
     description: str | None = None
 
-     
 
-    
-@dataclass
-class KeyValue(UQElem):
-    """KeyValue type"""
-    key: str | None = field(metadata=xml_attr())
-    value: str | None = field(metadata=xml_attr())
-    
-    
 # ============================================================================
 # DISTRIBUTIONS
 # ============================================================================
@@ -429,28 +397,20 @@ class Results(UQElem):
         self.point = point_id
 
 @dataclass
-class KeyValues(UQElem):
-    type: str = field(metadata = xml_attr())
-    key_values : list[KeyValue] = field(default_factory=list) 
-
-@dataclass
 class PseudoRandom(UQElem):
     """Pseudo random sampling type"""
     numberOfSamples: int = field(metadata = xml_attr())
-    key_values: KeyValues | None = None
     annotations: Annotations | None = None
-  
+
 @dataclass
 class LatinHypercube(UQElem):
     """Latin Hypercube random sampling type"""
     numberOfSamples: int = field(metadata = xml_attr())
-    key_values: KeyValues | None = None
     annotations: Annotations | None = None
     
 @dataclass
 class VendorSpecific(UQElem):
     """Placeholder for vendor specific type"""
-    keyvalues: KeyValues | None = None
     annotations: Annotations | None = None
 
 @dataclass
@@ -558,25 +518,11 @@ class TypedOperationalDomain(UQElem):
     geometryKind: str | None = field(default=None, metadata=xml_attr())
     parentRef: str | None = field(default=None, metadata=xml_attr())
     srmdRef: str | None = field(default=None, metadata=xml_attr())
-    description: str | None = None
     credibility_assessment: CredibilityAssessment | None = None
     process_context: ProcessContext | None = None
     axes: Axes | None = None
     boundary: Boundary | None = None
     experiment_points: ExperimentPoints | None = None
-
-    def to_dict(self) -> dict:
-        return {
-            'id': self.id,
-            'kind': self.kind.value,
-            'name': self.name,
-            'geometryKind': self.geometryKind,
-            'parentRef': self.parentRef,
-            'srmdRef': self.srmdRef,
-            'description': self.description,
-            'credibility_assessment': self.credibility_assessment.to_dict() if self.credibility_assessment else None,
-            'process_context': self.process_context.to_dict() if self.process_context else None,
-        }
 
 
 @dataclass
@@ -590,23 +536,11 @@ class ActivityDomain(UQElem):
     name: str | None = field(default = None,metadata=xml_attr())
     domainRef: str | None = field(default = None,metadata=xml_attr())
     srmdRef: str | None = field(default = None,metadata=xml_attr())
-    #description: str | None = None
     axes: Axes | None = None
     boundary: Boundary | None = None
     experiment_points: ExperimentPoints | None = None
     settings: ActivitySettings | None = None
     result_set: ResultSet | None = None
-
-    def to_dict(self) -> dict:
-        return {
-            'id': self.id,
-            'kind': self.kind,
-            'name': self.name,
-            'domainRef': self.domainRef,
-            'srmdRef': self.srmdRef,
-            'description': self.description,
-            'settings': self.settings.to_dict() if self.settings else None,
-        }
 
 
 @dataclass
@@ -789,20 +723,6 @@ class UncertaintyQuantification(UQElem, ATopLevelMetaData, is_document=True):
     def set_activities(self, activities: Activities) -> None:
         """Set the Activities container."""
         self.activities = activities
-
-    def to_dict(self) -> dict:
-        """Convert to dictionary representation."""
-        return {
-            'name': self.name,
-            'info': self.info,
-            'requiredAssumptionsRefs': self.requiredAssumptionsRefs,
-            'stmdRef': self.stmdRef,
-            'srmdRef': self.srmdRef,
-            'version': self.version,
-            'domains': self.domains if self.domains else None,
-            'model': self.model if self.model else None,
-            'activities': self.activities if self.activities else None,
-        }
 
 
 def main():
