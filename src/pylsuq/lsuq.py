@@ -6,7 +6,7 @@ from enum import Enum
 
 from lxml import etree as et
 
-from pylsuq.domelem import DomElem, xml_metadata, xml_attr
+from pylsuq.domelem import DomElem, xml_attr
 from pylsuq.ssc import ATopLevelMetaData
 
 UQ_NAMESPACE = "http://openscaling.org/UQ1/UncertaintyQuantification"
@@ -762,21 +762,20 @@ class Model(UQElem):
 
 
 @dataclass
-class UncertaintyQuantification(UQElem):
+class UncertaintyQuantification(UQElem, ATopLevelMetaData, is_document=True):
     """
-    Root element of the UQ1 schema.
+    Root element of the UQ1 schema. Inherits the ssc:ATopLevelMetaData
+    attribute group (author, fileversion, ...) as XML attributes.
     """
     name: str = field(metadata=xml_attr())
-    info: str | None = None
-    topLevelMetaData: ATopLevelMetaData | None = field(default=None, metadata=xml_metadata(use_class_ns=True))
-    requiredAssumptionsRefs: str | None = None
-    stmdRef: str | None = None
-    srmdRef: str | None = None
-    version: str | None = None
+    info: str | None = field(default=None, metadata=xml_attr())
+    requiredAssumptionsRefs: str | None = field(default=None, metadata=xml_attr())
+    stmdRef: str | None = field(default=None, metadata=xml_attr())
+    srmdRef: str | None = field(default=None, metadata=xml_attr())
+    version: str | None = field(default=None, metadata=xml_attr())
     domains: Domains | None = None
     model: Model | None = None
     activities: Activities | None = None
-    classifications: list[str] = field(default_factory=list)
     annotations: Annotations | None = None
 
     def set_domains(self, domains: Domains) -> None:

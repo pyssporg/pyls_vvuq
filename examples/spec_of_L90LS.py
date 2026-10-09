@@ -79,6 +79,5 @@ activities = lsuq.Activities()
 activities.add_forward_uq(uq_activity)
 
 # Create full file
-topLevelMetaData = lsuq.ATopLevelMetaData(author = 'Viktor larsson')
-UQout = lsuq.UncertaintyQuantification(name='test',activities = activities,domains = domains,model=model,topLevelMetaData=topLevelMetaData)
+UQout = lsuq.UncertaintyQuantification(name='test',activities = activities,domains = domains,model=model,author='Viktor larsson')
 lsuq.save_xml(output_dir / "L90LS_UD_OS_OS_UQ.xml", UQout)
