@@ -65,18 +65,18 @@ class Parameter(UQElem):
 
 @dataclass
 class CredibilityAssessment(UQElem):
-    level: str
-    purpose: str | None = None
-    standard: str | None = None
+    level: str = field(metadata=xml_attr())
+    purpose: str | None = field(default=None, metadata=xml_attr())
+    standard: str | None = field(default=None, metadata=xml_attr())
     description: str | None = None
 
 
 @dataclass
 class ProcessContext(UQElem):
     """Process and phase context for an artifact"""
-    process: str | None = None
-    phase: str | None = None
-    glueParticleRef: str | None = None
+    process: str | None = field(default=None, metadata=xml_attr())
+    phase: str | None = field(default=None, metadata=xml_attr())
+    glueParticleRef: str | None = field(default=None, metadata=xml_attr())
     description: str | None = None
 
 
@@ -107,7 +107,7 @@ class ErrorMetric(UQElem):
 @dataclass
 class ActivitySettings(UQElem):
     """Settings for an activity."""
-    method: str | None = None
+    method: str | None = field(default=None, metadata=xml_attr())
     description: str | None = None
     key_values: dict | None = None
 
@@ -554,10 +554,10 @@ class TypedOperationalDomain(UQElem):
     """Domain with semantic metadata: kind, hierarchy, and credibility."""
     id: str = field(metadata=xml_attr())
     kind: TypedOperationalDomainKind = field(metadata=xml_attr())
-    name: str | None = None
-    geometryKind: str | None = None
-    parentRef: str | None = None
-    srmdRef: str | None = None
+    name: str | None = field(default=None, metadata=xml_attr())
+    geometryKind: str | None = field(default=None, metadata=xml_attr())
+    parentRef: str | None = field(default=None, metadata=xml_attr())
+    srmdRef: str | None = field(default=None, metadata=xml_attr())
     description: str | None = None
     credibility_assessment: CredibilityAssessment | None = None
     process_context: ProcessContext | None = None

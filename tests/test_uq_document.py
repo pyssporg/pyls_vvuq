@@ -8,6 +8,14 @@ attributes, not child elements.
 from lxml import etree as et
 
 from pylsuq import UncertaintyQuantification, load_xml, save_xml
+from pylsuq.lsuq import (
+    UQ_NAMESPACE,
+    ActivitySettings,
+    CredibilityAssessment,
+    ProcessContext,
+    TypedOperationalDomain,
+    TypedOperationalDomainKind,
+)
 
 
 class TestUncertaintyQuantificationDocument:
@@ -54,3 +62,42 @@ class TestUncertaintyQuantificationDocument:
         path = tmp_path / "uq.xml"
         save_xml(path, obj)
         assert load_xml(path) == obj
+
+
+class TestDomainMetadataAttributes:
+    def test_typed_operational_domain_attributes(self):
+        # Note: from_xml of this class is still blocked by the unmapped
+        # `description` field (plain str treated as a child element), so
+        # only serialization is asserted here.
+        obj = TypedOperationalDomain(
+            id="OD1",
+            kind=TypedOperationalDomainKind.OPERATIONAL_DESIGN_DOMAIN,
+            name="domain",
+            geometryKind="hyper-rectangle",
+            parentRef="OD0",
+            srmdRef="file:///srmd",
+            credibility_assessment=CredibilityAssessment(
+                level="L2", purpose="demo", standard="STD-1"
+            ),
+            process_context=ProcessContext(
+                process="development", phase="P2", glueParticleRef="GP7"
+            ),
+        )
+        elem = obj.to_xml()
+        for attr in ("name", "geometryKind", "parentRef", "srmdRef"):
+            assert elem.get(attr) is not None
+            assert elem.find(attr) is None
+        ca = elem.find(f"{{{UQ_NAMESPACE}}}CredibilityAssessment")
+        assert (ca.get("level"), ca.get("purpose"), ca.get("standard")) == (
+            "L2", "demo", "STD-1",
+        )
+        pc = elem.find(f"{{{UQ_NAMESPACE}}}ProcessContext")
+        assert (pc.get("process"), pc.get("phase"), pc.get("glueParticleRef")) == (
+            "development", "P2", "GP7",
+        )
+
+    def test_activity_settings_method_is_attribute(self):
+        obj = ActivitySettings(method="Monte Carlo")
+        elem = obj.to_xml()
+        assert elem.get("method") == "Monte Carlo"
+        assert elem.find("method") is None
