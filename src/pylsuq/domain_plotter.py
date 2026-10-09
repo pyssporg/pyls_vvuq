@@ -1,19 +1,55 @@
 from __future__ import annotations
 
 from itertools import combinations
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 import pylsuq as lsuq
 import plotly.graph_objects as go
 import numpy as np
 from scipy.spatial import ConvexHull, QhullError
+import warnings
 
-def _axis_labels(plot_axes:list[lsuq.Axis]) -> list[str]:
-    return [axis.name + " [" + (axis.unit or "-") + "]" for axis in plot_axes]
+def _axis_labels(
+    axis_indices: list[int],
+    axes: lsuq.Axes | None = None,
+) -> list[str]:
+    if axes is None:
+        return [f"Ax {index}" for index in axis_indices]
 
-def _axis_indeces(plot_axes:list[str] | list[int],axes: lsuq.Axes) -> list[int]:
-    if isinstance(plot_axes[0],int):
-        return plot_axes
-    return [iA for iA,axis in enumerate(axes.axes) if axis.name in plot_axes]
+    labels = []
+
+    for index in axis_indices:
+        axis = axes.axes[index]
+        unit = axis.unit or "-"
+        labels.append(f"{axis.name} [{unit}]")
+
+    return labels
+
+def _axis_indices(
+    plot_axes: list[str] | list[int],
+    axes: lsuq.Axes | None = None,
+) -> list[int]:
+    if not plot_axes:
+        raise ValueError("plot_axes cannot be empty.")
+
+    if all(isinstance(axis, int) for axis in plot_axes):
+        return list(plot_axes)
+
+    if axes is None:
+        raise ValueError("axes must be supplied when plot_axes contains names.")
+
+    if not all(isinstance(axis, str) for axis in plot_axes):
+        raise ValueError("plot_axes must contain either all names or all indices.")
+
+    index_by_name = {
+        axis.name: index
+        for index, axis in enumerate(axes.axes)
+    }
+
+    missing = [name for name in plot_axes if name not in index_by_name]
+    if missing:
+        raise ValueError(f"Unknown axis name(s): {missing}")
+
+    return [index_by_name[name] for name in plot_axes]
     
 def _style(style: dict | None) -> dict[str, Any]:
     """Normalize public style aliases into a compact internal style dictionary."""
@@ -25,7 +61,7 @@ def _style(style: dict | None) -> dict[str, Any]:
     edgecolor = values.get("edgecolor", color)
     facecolor = values.get("facecolor", color)
     linewidth = values.get("edge_width", values.get("linewidth", 3))
-    markersize = values.get("markersize", values.get("markersize", 4))
+    markersize = values.get("markersize", values.get("marker_size", 4))
     alpha = values.get("alpha", values.get("opacity", 0.75))
 
     try:
@@ -52,6 +88,33 @@ def _style(style: dict | None) -> dict[str, Any]:
         "markersize": markersize,
         "name": values.get("name", values.get("label")),
     }
+
+def _hover_template(
+    title: str,
+    axis_labels: list[str],
+    *,
+    include_point_ids: bool = False,
+    extra_label: str = "",
+) -> str:
+    lines = []
+
+    if extra_label:
+        lines.append(extra_label)
+
+    lines.append(title)
+
+    if include_point_ids:
+        lines.extend([
+            "PointSet: %{customdata[0]}",
+            "Point: %{customdata[1]}",
+        ])
+
+    coordinate_names = ("x", "y", "z")
+
+    for label, coordinate_name in zip(axis_labels, coordinate_names):
+        lines.append(f"{label}: %{{{coordinate_name}}}")
+
+    return "<br>".join(lines) + "<extra></extra>"
 
 def _hyper_rectangle_corners(bounds:list[list[int]]):
     """Return all corners of a two- or three-dimensional axis-aligned hyper_rectangle."""
@@ -104,21 +167,45 @@ def _boundary_coordinates(corners: Any, dimension: int) -> tuple[list[float | No
             coordinates[axis].extend([corners[first, axis], corners[second, axis], None])
     return tuple(coordinates)
 
-def _coplanar_perimeter(points: Any, ConvexHull: Any, QhullError: Any, np: Any) -> Any:
-    """Find a 3D coplanar perimeter by calculating a hull in its fitted plane."""
+def _coplanar_perimeter(points: np.ndarray) -> np.ndarray:
+    """Return the perimeter of coplanar 3D points."""
     centered = points - points.mean(axis=0)
-    _u, singular_values, vh = np.linalg.svd(centered, full_matrices=False)
-    tolerance = max(points.shape) * np.finfo(float).eps * (singular_values[0] if singular_values.size else 1.0)
+
+    _, singular_values, vh = np.linalg.svd(
+        centered,
+        full_matrices=False,
+    )
+
+    tolerance = (
+        max(points.shape)
+        * np.finfo(float).eps
+        * singular_values[0]
+    )
+
     if singular_values.size < 2 or singular_values[1] <= tolerance:
-        raise ValueError("Projected 3D points are collinear; a perimeter cannot be formed.")
-    planar = centered @ vh[:2].T
+        raise ValueError(
+            "Projected 3D points are collinear; a perimeter cannot be formed."
+        )
+
+    planar_points = centered @ vh[:2].T
+
     try:
-        hull = ConvexHull(planar)
+        hull = ConvexHull(planar_points)
     except QhullError as exc:
-        raise ValueError("Could not compute a perimeter for the coplanar points.") from exc
+        raise ValueError(
+            "Could not compute a perimeter for the coplanar points."
+        ) from exc
+
     return points[hull.vertices]
 
-def _add_line_marker_trace(fig: go.Figure,coordinates: list[float],style: dict, name: str | None = None, is_3d: bool | None = None, mode = "lines+markers",hovertemplate = (),customdata = []) -> Any:
+def _add_line_marker_trace(fig: go.Figure,
+                           coordinates: list[float],
+                           style: dict, 
+                           name: str | None = None, 
+                           is_3d: bool | None = None, 
+                           mode = "lines+markers",
+                           hovertemplate: str | None = None,
+                           customdata: Any = None) -> Any:
     if is_3d is None:
         is_3d = len(coordinates) == 3
     trace_class = go.Scatter3d if is_3d else go.Scatter
@@ -145,8 +232,8 @@ def _add_points_trace(
     style: Mapping[str, Any],
     name: str | None = None,
     is_3d: bool | None = None,
-    customdata = [],
-    hovertemplate=()
+    customdata : Any = None,
+    hovertemplate: str | None = None
 ) -> Any:
     if is_3d is None:
         is_3d = points.shape[1] == 3
@@ -166,200 +253,225 @@ def _add_points_trace(
     fig.add_trace(trace)
     return trace
 
-def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],style = None,axes: lsuq.Axes = None, fig: go.Figure = None,experiment_points = None) -> go.Figure | None:   
-    if fig is None:
-        fig = go.Figure()
-        returnFig = True
+def _plot_hyper_rectangle(fig:go.Figure,shape:lsuq.HyperRectangle,axis_indices,axis_labels,normalized_style,boundaryType):
+    dimension = len(axis_indices)
+    bounds = []
+    is_3d = dimension == 3
+    for i in axis_indices:
+        pair = [shape.points[0].coordinates[i],shape.points[1].coordinates[i]]
+        bounds.append([np.min(pair),np.max(pair)])
+    corners = _hyper_rectangle_corners(bounds)
+    hovertemplate = _hover_template(
+        (normalized_style.get("name") or boundaryType) + f" boundary ({boundaryType})",
+        axis_labels,
+        ) 
+        
+    _add_line_marker_trace(
+        fig,
+        _boundary_coordinates(corners,dimension),
+        normalized_style,
+        (normalized_style.get("name") or boundaryType) + f" boundary ({boundaryType})",
+        is_3d = is_3d,
+        hovertemplate = hovertemplate
+        )
+    if is_3d:
+        hovertemplate = _hover_template(
+            (normalized_style.get("name") or boundaryType) + f" boundary ({boundaryType})",
+            axis_labels,
+            ) 
+        mesh = go.Mesh3d(
+            x=corners[:, 0],
+            y=corners[:, 1],
+            z=corners[:, 2],
+            i=[0, 0, 4, 4, 0, 0, 2, 2, 0, 0, 1, 1],
+            j=[1, 3, 5, 7, 1, 5, 3, 7, 2, 6, 3, 7],
+            k=[3, 2, 7, 6, 5, 4, 7, 6, 6, 4, 7, 5],
+            color=normalized_style["facecolor"],
+            opacity=normalized_style["alpha"]*0.6,
+            name= (normalized_style["name"] or boundaryType)+ f" boundary face ({boundaryType})",
+            showlegend=True,
+            hovertemplate = hovertemplate   
+             
+            )   
+        fig.add_trace(mesh)
+        
+def _plot_convex_hull(fig,shape,axis_indices,axis_labels,normalized_style,boundaryType):     
+    data = np.asarray([point.coordinates for point in shape.points])
+    projected = data[:,axis_indices]
+    unique_points  = np.unique(projected,axis=0)            
+    dimension = len(axis_indices)
+    if len(unique_points) < dimension+1:
+            warnings.warn(
+                f"At least {str(dimension+1)} unique points are required for a {str(dimension)}D convex hull.",
+                stacklevel=2,
+                )
+    is_3d = dimension == 3
+    if dimension == 2:
+        try:
+            do_hull = True
+            hull = ConvexHull(unique_points)
+        except QhullError:
+            do_hull = False
+            warnings.warn("Projected points are collinear; a 2D convex hull cannot be formed, only points are plotted.")
+        
+        if do_hull:
+            
+            hovertemplate = _hover_template(
+                (normalized_style.get("name") or boundaryType) + f" boundary ({boundaryType})",
+             axis_labels,
+                 )
+            perimeter = unique_points[list(hull.vertices) + [hull.vertices[0]]]
+        
+            _add_line_marker_trace(fig,
+                        (perimeter[:, 0], perimeter[:, 1]),
+                        normalized_style,
+                        (normalized_style["name"] or boundaryType)+ f" boundary ({boundaryType})",
+                        is_3d = is_3d,
+                        hovertemplate = hovertemplate
+                        )
+       
+        
     else:
-        returnFig = False
-     
-    if experiment_points is None:
-        trace_experiment = False
-    else:
-        trace_experiment = True
-    
+        centered = unique_points - unique_points.mean(axis=0)
+        rank = np.linalg.matrix_rank(centered)
+        if rank < 2:
+            warnings.warn(
+                "Projected 3D points are collinear; a convex hull cannot be formed. "
+                "Only points are plotted.",
+                stacklevel=2,
+                )
+        elif rank == 2:
+            hovertemplate = _hover_template(
+                (normalized_style.get("name") or boundaryType) + f" boundary ({boundaryType})",
+                axis_labels,
+                )                      
+            perimeter = perimeter = _coplanar_perimeter(unique_points)
+            
+            closed = np.vstack((perimeter, perimeter[0]))
+            _add_line_marker_trace(
+                fig, 
+                (closed[:, 0], closed[:, 1], closed[:, 2]),
+                normalized_style,
+                (normalized_style["name"] or boundaryType)+f" boundary ({boundaryType})",
+                hovertemplate = hovertemplate
+                )
+            
+        else:
+            try:
+                do_hull = True
+                hull = ConvexHull(unique_points)
+            except QhullError:
+                warnings.warn("Could not compute a 3D convex hull for the projected points, only points are plotted")
+                do_hull = False
+            if do_hull:
+                edges = set()
+
+                for simplex in hull.simplices:
+                    edges.update(tuple(sorted(pair)) for pair in combinations(simplex, 2))
+
+                line_coordinates = [[], [], []]
+
+                for first, second in sorted(edges):
+                    # Coordinates for the Plotly line trace
+                    for axis in range(3):
+                        line_coordinates[axis].extend([
+                            unique_points[first, axis],
+                            unique_points[second, axis],
+                            None,
+                            ])  
+                
+                
+                hovertemplate = _hover_template(
+                    (normalized_style.get("name") or boundaryType) + f" boundary ({boundaryType})",
+                    axis_labels,
+                    ) 
+                _add_line_marker_trace(fig,
+                                       tuple(line_coordinates),
+                                       normalized_style, 
+                                       (normalized_style["name"] or boundaryType) + f" boundary  ({boundaryType})",
+                                       is_3d = is_3d,
+                                       hovertemplate = hovertemplate
+                                       )
+            
+                simplices = hull.simplices
+                mesh = go.Mesh3d(
+                 x=unique_points[:, 0],
+                 y=unique_points[:, 1],
+                 z=unique_points[:, 2],
+                 i=simplices[:, 0],
+                 j=simplices[:, 1],
+                 k=simplices[:, 2],
+                 color=normalized_style["facecolor"],
+                 opacity=normalized_style["alpha"]*0.6,
+                 name= (normalized_style["name"] or boundaryType)+ f" boundary faces  ({boundaryType})",
+                 showlegend=True,
+                 hovertemplate =hovertemplate  
+                 )
+                fig.add_trace(mesh)
+
+def _plot_experiment_points(fig,experiment_points,axis_indices,axis_labels,normalized_style,boundaryType,extraLabel=""):
     markers_loop = ["cross",
                     "diamond",
                     "diamond-open",
                     "square",
                     "square-open",
-                    "x"]    
+                    "x"]  
+    is_3d = len(axis_indices) == 3
+    for ip,point_set in enumerate(experiment_points.point_sets):
+         
+         trace_style = {
+             **normalized_style,
+             "markersize": normalized_style["markersize"] + 3,
+             "marker": markers_loop[ip % len(markers_loop)],
+             }       
+         customdata = [[point_set.id,point.id] for point in point_set.points]
+         hovertemplate = _hover_template(extraLabel,
+                 axis_labels,
+                 include_point_ids=True,
+                 )
+         data_experiment = np.asarray([point.coordinates for point in point_set.points])
+         projected_experiment = data_experiment[:,axis_indices]
+         _add_points_trace(fig,
+                           projected_experiment, 
+                           trace_style, 
+                           (normalized_style["name"] or boundaryType)+ " "+point_set.id,
+                           is_3d = is_3d,
+                           customdata = customdata,
+                           hovertemplate = hovertemplate)
+        
+def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],style = None,axes: lsuq.Axes = None, fig: go.Figure = None,experiment_points = None,extraLabel = "") -> go.Figure:   
+    if fig is None:
+        fig = go.Figure()
+    
+       
     
     normalized_style = _style(style)
-    axis_indeces = _axis_indeces(plot_axes, axes)
-    axis_labels = _axis_labels([axes.axes[i] for i in axis_indeces])
-    dimension = len(axis_indeces)
+    axis_indices = _axis_indices(plot_axes, axes)
+    axis_labels = _axis_labels(axis_indices, axes)
+    dimension = len(axis_indices)
     
     if dimension not in (2, 3):
         raise ValueError("dims must resolve to exactly two or three dimensions.")
         
-    is_3d = dimension == 3
     
-    match boundary.shape.__class__.__name__:
-        case "HyperRectangle":
-            bounds = []
-            for i in axis_indeces:
-                pair = [boundary.shape.points[0].coordinates[i],boundary.shape.points[1].coordinates[i]]
-                bounds.append([np.min(pair),np.max(pair)])
-            corners = _hyper_rectangle_corners(bounds)
-            hovertemplate =( (normalized_style.get("name") or "HyperRectangle") + " boundary (HyperRectangle)"+ "<br>" +                       
-             axis_labels[0]+": %{x}<br>" +                       
-              
-            axis_labels[1]+": %{y}<br>"+
-            (axis_labels[2]+": %{z}" if is_3d else "")+
-            "<extra></extra>"
-            )
-            _add_line_marker_trace(
-                fig,
-                _boundary_coordinates(corners,dimension),
-                normalized_style,
-                (normalized_style.get("name") or "HyperRectangle") + " boundary  (HyperRectangle)",
-                is_3d = is_3d,
-                hovertemplate = hovertemplate
-                )
-            if is_3d:
-                mesh = go.Mesh3d(
-                    x=corners[:, 0],
-                    y=corners[:, 1],
-                    z=corners[:, 2],
-                    i=[0, 0, 4, 4, 0, 0, 2, 2, 0, 0, 1, 1],
-                    j=[1, 3, 5, 7, 1, 5, 3, 7, 2, 6, 3, 7],
-                    k=[3, 2, 7, 6, 5, 4, 7, 6, 6, 4, 7, 5],
-                    color=normalized_style["facecolor"],
-                    opacity=normalized_style["alpha"]*0.6,
-                    name= (normalized_style["name"] or "HyperRectangle")+ " boundary face (HyperRectangle)",
-                    showlegend=True,
-                 )   
-                fig.add_trace(mesh)
-        case "ConvexHull":
-            data = np.asarray([point.coordinates for point in boundary.shape.points])
-            projected = data[:,axis_indeces]
-            unique_points  = np.unique(projected,axis=0)
-            if len(unique_points) < len(axis_indeces) + 1:
-                raise ValueError("Not enough unique projected points to construct a convex hull.")
-            
-            
-            if dimension == 2:
-                try:
-                    hull = ConvexHull(unique_points)
-                except QhullError as exc:
-                   raise ValueError("Projected points are collinear; a 2D convex hull cannot be formed.") from exc
-                hovertemplate =( (normalized_style.get("name") or "ConvexHull") + " boundary (ConvexHull)"+ "<br>" +                       
-                 axis_labels[0]+": %{x}<br>" +                    
-                axis_labels[1]+": %{y}<br>"+
-                "<extra></extra>"
-                )
-                perimeter = unique_points[list(hull.vertices) + [hull.vertices[0]]]
-                _add_line_marker_trace(fig,
-                                (perimeter[:, 0], perimeter[:, 1]),
-                                normalized_style,
-                                (normalized_style["name"] or "ConvexHull")+ " boundary (ConvexHull)",
-                                is_3d = is_3d,
-                                hovertemplate = hovertemplate
-                                )
-               
-                
-            else:
-                centered = unique_points - unique_points.mean(axis=0)
-                rank = np.linalg.matrix_rank(centered)
-                if rank < 2:
-                    raise ValueError("Projected 3D points are collinear; a convex hull cannot be formed.")
-                if rank == 2:
-                    hovertemplate =( (normalized_style.get("name") or "ConvexHull") + " boundary (ConvexHull)"+ "<br>" +                       
-                    axis_labels[0]+": %{x}<br>" +                    
-                    axis_labels[1]+": %{y}<br>"+
-                    "<extra></extra>"
-                    )
-                    perimeter = _coplanar_perimeter(unique_points, ConvexHull, QhullError, np)
-                    
-                    closed = np.vstack((perimeter, perimeter[0]))
-                    _add_line_marker_trace(
-                        fig, 
-                        (closed[:, 0], closed[:, 1], closed[:, 2]),
-                        normalized_style,
-                        (normalized_style["name"] or "ConvexHull")+" boundary (ConvexHull)",
-                        hovertemplate = hovertemplate
-                        )
-                    
-                else:
-                    try:
-                        hull = ConvexHull(unique_points)
-                    except QhullError as exc:
-                        raise ValueError("Could not compute a 3D convex hull for the projected points.") from exc
+    boundaryType = boundary.shape.__class__.__name__
+    if isinstance(boundary.shape,lsuq.HyperRectangle):
+        _plot_hyper_rectangle(fig, boundary.shape, axis_indices, axis_labels, normalized_style,boundaryType) 
 
-            
-                    edges = set()
-
-                    for simplex in hull.simplices:
-                        edges.update(tuple(sorted(pair)) for pair in combinations(simplex, 2))
-
-                    line_coordinates = [[], [], []]
-
-                    for first, second in sorted(edges):
-                        # Coordinates for the Plotly line trace
-                        for axis in range(3):
-                            line_coordinates[axis].extend([
-                                unique_points[first, axis],
-                                unique_points[second, axis],
-                                None,
-                                ])                    
-                    hovertemplate =( (normalized_style.get("name") or "HyperRectangle") + " boundary (ConvexHull)"+ "<br>" +                       
-                     axis_labels[0]+": %{x}<br>" +                    
-                    axis_labels[1]+": %{y}<br>"+
-                    axis_labels[2]+": %{z}"
-                    "<extra></extra>"
-                    )
-                    _add_line_marker_trace(fig,
-                    tuple(line_coordinates),
-                    normalized_style, 
-                    (normalized_style["name"] or "ConvexHull") + " boundary  (ConvexHull)",
-                    is_3d = is_3d,
-                    hovertemplate = hovertemplate
-                    )
-                    
-                    simplices = hull.simplices
-                    mesh = go.Mesh3d(
-                         x=unique_points[:, 0],
-                         y=unique_points[:, 1],
-                         z=unique_points[:, 2],
-                         i=simplices[:, 0],
-                         j=simplices[:, 1],
-                         k=simplices[:, 2],
-                         color=normalized_style["facecolor"],
-                         opacity=normalized_style["alpha"]*0.6,
-                         name= (normalized_style["name"] or "ConvexHull")+ " boundary faces  (ConvexHull)",
-                         showlegend=True,
-                         )   
-                    fig.add_trace(mesh)
-            if trace_experiment:
-                normalized_style["markersize"] += 3
-                for ip,point_set in enumerate(experiment_points.point_sets):
-                
-                    normalized_style["marker"] = markers_loop[ip]
-                    customdata = [[point_set.id,point.id] for point in point_set.points]
-                    hovertemplate=(
-                        "PointSet: %{customdata[0]}<br>" + 
-                        "Point: %{customdata[1]}<br>" +                       
-                         axis_labels[0]+": %{x}<br>" +                       
-                          
-                        axis_labels[1]+": %{y}<br>"+
-                        (axis_labels[2]+": %{z}" if is_3d else "")+
-                        "<extra></extra>"
-                        )
-                    data_experiment = np.asarray([point.coordinates for point in point_set.points])
-                    projected_experiment = data_experiment[:,axis_indeces]
-                    _add_points_trace(fig,
-                                      projected_experiment, 
-                                      normalized_style, 
-                                      (normalized_style["name"] or "ConvexHull")+ " "+point_set.id,
-                                      is_3d = is_3d,
-                                      customdata = customdata,
-                                      hovertemplate = hovertemplate)
+    elif isinstance(boundary.shape,lsuq.ConvexHull): 
+        _plot_convex_hull(fig,boundary.shape,axis_indices,axis_labels,normalized_style,boundaryType)
+    else:
+        raise TypeError(
+            f"Unsupported boundary shape: {type(boundary.shape).__name__}"
+        )
+    if experiment_points is not None:
+        _plot_experiment_points(fig,experiment_points,axis_indices,axis_labels,normalized_style,boundaryType,extraLabel=extraLabel)
+       
             
     _set_axis_titles(fig, axis_labels)    
    
-    if returnFig:
-        return fig
+    
+    return fig
 
 def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plot_axes: list[str] | list[int],style = None,fig: go.Figure = None ) -> go.Figure | None:      
     if style is None:
@@ -368,16 +480,11 @@ def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plo
         style['label'] = domain.id
     if fig is None:
         fig = go.Figure()
-        returnFig = True
-    else:
-        returnFig = False
         
     
-    match domain.boundary.shape.__class__.__name__:
-        case "HyperRectangle":
-            add_boundary_plot(fig = fig,boundary = domain.boundary,axes = domain.axes,plot_axes = plot_axes,style = style)
-        case "ConvexHull":            
-            add_boundary_plot(fig = fig,boundary = domain.boundary,axes = domain.axes,plot_axes = plot_axes,style = style,experiment_points=domain.experiment_points)
-    if returnFig:
-        return fig
+    
+    
+    add_boundary_plot(fig = fig,boundary = domain.boundary,axes = domain.axes,plot_axes = plot_axes,style = style,experiment_points=domain.experiment_points,extraLabel=domain.id)
+    
+    return fig
 
