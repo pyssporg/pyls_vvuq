@@ -17,7 +17,7 @@
 
 ## Type Mapping (DomElem)
 The library interprets Python type hints to determine XML structure:
-- `list[T]`: Multiple child elements of type `T`.
+- `list[T]`: Multiple child elements of type `T`. `T` may itself be a union (e.g. a `TypeAlias` like `GDistribution` used as `list[GDistribution]`); each child element is then matched to a union member by tag, preserving document order.
 - `dict[K, V]`: Keyed multiple child elements of type `V`. Keys are never written to XML — they are re-derived from the values with `key_fn` on deserialization.
 - `Optional[T]` or `T | None`: Zero or one child element of type `T`.
 - `Union[T, ...]` or `T | U`: One of several possible child types (the first match wins).

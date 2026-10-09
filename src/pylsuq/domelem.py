@@ -99,6 +99,13 @@ def _read_attr(field_, metadata, elem):
 def _read_child(field_, metadata, elem, ns=None):
     if get_origin(field_.type) is list:  # macOccurs > 1
         type_ = get_args(field_.type)[0]
+        if is_union(type_):  # heterogeneous list: dispatch per child by tag
+            members = {
+                member.tag(ns=ns, use_class_ns=metadata.use_class_ns): member
+                for member in get_args(type_)
+                if member is not type(None)
+            }
+            return [members[e.tag].from_xml(e) for e in elem if e.tag in members]
         tag = type_.tag(ns=ns, use_class_ns=metadata.use_class_ns)
         return [type_.from_xml(e) for e in elem.findall(tag)]
     elif get_origin(field_.type) is dict:  # keyed maxOccurs > 1
@@ -143,10 +150,17 @@ def _write_attr(obj, field_, metadata, elem):
 def _write_child(obj, field_, metadata, elem):
     value = getattr(obj, field_.name)
     if get_origin(field_.type) is list:
-        
         type_ = get_args(field_.type)[0]
-        child_ns = type_.NS if metadata.use_class_ns else obj.NS
-        elem.extend([e.to_xml(ns=child_ns) for e in value])
+        if is_union(type_):
+            # Members are heterogeneous types: take the namespace from
+            # each value rather than the (union) field type.
+            elem.extend([
+                e.to_xml(ns=type(e).NS if metadata.use_class_ns else obj.NS)
+                for e in value
+            ])
+        else:
+            child_ns = type_.NS if metadata.use_class_ns else obj.NS
+            elem.extend([e.to_xml(ns=child_ns) for e in value])
     elif get_origin(field_.type) is dict:
         # Keys are redundant: they are derived from the values with
         # metadata.key_fn on deserialization, so only values are written.
