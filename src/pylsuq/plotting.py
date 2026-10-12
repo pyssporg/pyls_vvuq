@@ -3,10 +3,20 @@ from __future__ import annotations
 from itertools import combinations
 from typing import Any, Mapping
 import pylsuq as lsuq
-import plotly.graph_objects as go
-import numpy as np
-from scipy.spatial import ConvexHull, QhullError
 import warnings
+
+def _require_plotting_dependencies():
+    try:
+        import numpy as np
+        import plotly.graph_objects as go
+        from scipy.spatial import ConvexHull, QhullError
+    except ImportError as exc:
+        raise ImportError(
+            "Domain plotting requires optional dependencies. "
+            "Install them with: pip install pylsuq[plotting]"
+        ) from exc
+
+    return np, go, ConvexHull, QhullError
 
 def _axis_labels(
     axis_indices: list[int],
@@ -118,8 +128,9 @@ def _hover_template(
 
 def _hyper_rectangle_corners(bounds:list[list[int]]):
     """Return all corners of a two- or three-dimensional axis-aligned hyper_rectangle."""
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     corners = [[]]
-
+    
     for lower, upper in bounds:
         corners = [
             corner + [value]
@@ -143,7 +154,7 @@ def _marker_kwargs(style: Mapping[str, Any]) -> dict[str, Any]:
         "opacity": style["alpha"],
     }
 
-def _set_axis_titles(fig: go.Figure, labels: list[str]) -> None:
+def _set_axis_titles(fig, labels: list[str]) -> None:
     """Set Plotly axis titles for the active two- or three-dimensional projection."""
     if len(labels) == 2:
         fig.update_layout(xaxis_title=labels[0], yaxis_title=labels[1])
@@ -167,8 +178,9 @@ def _boundary_coordinates(corners: Any, dimension: int) -> tuple[list[float | No
             coordinates[axis].extend([corners[first, axis], corners[second, axis], None])
     return tuple(coordinates)
 
-def _coplanar_perimeter(points: np.ndarray) -> np.ndarray:
+def _coplanar_perimeter(points):
     """Return the perimeter of coplanar 3D points."""
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     centered = points - points.mean(axis=0)
 
     _, singular_values, vh = np.linalg.svd(
@@ -198,7 +210,7 @@ def _coplanar_perimeter(points: np.ndarray) -> np.ndarray:
 
     return points[hull.vertices]
 
-def _add_line_marker_trace(fig: go.Figure,
+def _add_line_marker_trace(fig,
                            coordinates: list[float],
                            style: dict, 
                            name: str | None = None, 
@@ -206,6 +218,7 @@ def _add_line_marker_trace(fig: go.Figure,
                            mode = "lines+markers",
                            hovertemplate: str | None = None,
                            customdata: Any = None) -> Any:
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     if is_3d is None:
         is_3d = len(coordinates) == 3
     trace_class = go.Scatter3d if is_3d else go.Scatter
@@ -235,6 +248,7 @@ def _add_points_trace(
     customdata : Any = None,
     hovertemplate: str | None = None
 ) -> Any:
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     if is_3d is None:
         is_3d = points.shape[1] == 3
     trace_class = go.Scatter3d if is_3d else go.Scatter
@@ -253,7 +267,8 @@ def _add_points_trace(
     fig.add_trace(trace)
     return trace
 
-def _plot_hyper_rectangle(fig:go.Figure,shape:lsuq.HyperRectangle,axis_indices,axis_labels,normalized_style,boundaryType):
+def _plot_hyper_rectangle(fig,shape:lsuq.HyperRectangle,axis_indices,axis_labels,normalized_style,boundaryType):
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     dimension = len(axis_indices)
     bounds = []
     is_3d = dimension == 3
@@ -295,7 +310,8 @@ def _plot_hyper_rectangle(fig:go.Figure,shape:lsuq.HyperRectangle,axis_indices,a
             )   
         fig.add_trace(mesh)
         
-def _plot_convex_hull(fig,shape,axis_indices,axis_labels,normalized_style,boundaryType):     
+def _plot_convex_hull(fig,shape,axis_indices,axis_labels,normalized_style,boundaryType):  
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     data = np.asarray([point.coordinates for point in shape.points])
     projected = data[:,axis_indices]
     unique_points  = np.unique(projected,axis=0)            
@@ -410,6 +426,7 @@ def _plot_convex_hull(fig,shape,axis_indices,axis_labels,normalized_style,bounda
                 fig.add_trace(mesh)
 
 def _plot_experiment_points(fig,experiment_points,axis_indices,axis_labels,normalized_style,boundaryType,extraLabel=""):
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     markers_loop = ["cross",
                     "diamond",
                     "diamond-open",
@@ -439,7 +456,15 @@ def _plot_experiment_points(fig,experiment_points,axis_indices,axis_labels,norma
                            customdata = customdata,
                            hovertemplate = hovertemplate)
         
-def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],style = None,axes: lsuq.Axes = None, fig: go.Figure = None,experiment_points = None,extraLabel = "") -> go.Figure:   
+def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],style = None,axes: lsuq.Axes = None, fig = None,experiment_points = None,extraLabel = ""):   
+    try:
+        import plotly.graph_objects as go
+    except ImportError as exc:
+        raise ImportError(
+            "Plotting requires the optional dependency 'plotly'. "
+            "Install it with: pip install pylsuq[plotting]"
+        ) from exc
+    
     if fig is None:
         fig = go.Figure()
     
@@ -455,6 +480,7 @@ def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],s
         
     
     boundaryType = boundary.shape.__class__.__name__
+    
     if isinstance(boundary.shape,lsuq.HyperRectangle):
         _plot_hyper_rectangle(fig, boundary.shape, axis_indices, axis_labels, normalized_style,boundaryType) 
 
@@ -473,7 +499,8 @@ def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],s
     
     return fig
 
-def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plot_axes: list[str] | list[int],style = None,fig: go.Figure = None ) -> go.Figure | None:      
+def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plot_axes: list[str] | list[int],style = None,fig = None ):      
+    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
     if style is None:
         style = {}
     if style.get('label') is None:
@@ -481,9 +508,6 @@ def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plo
     if fig is None:
         fig = go.Figure()
         
-    
-    
-    
     add_boundary_plot(fig = fig,boundary = domain.boundary,axes = domain.axes,plot_axes = plot_axes,style = style,experiment_points=domain.experiment_points,extraLabel=domain.id)
     
     return fig

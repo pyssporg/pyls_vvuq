@@ -50,7 +50,17 @@ from pylsuq.lsuq import (
 from pylsuq.ssc import ATopLevelMetaData
 from pylsuq.domelem import load_xml, save_xml
 from pylsuq.errors import XmlMappingError
-from pylsuq.domain_plotter import add_boundary_plot,add_domain_plot
+
+
+# Lightweight wrappers for plotting functions, to avoid auto-import of plotly, numpy and scipy
+def add_domain_plot(*args,**kwargs):
+    from .plotting import add_domain_plot as _add_domain_plot
+    return _add_domain_plot(*args,**kwargs)
+
+def add_boundary_plot(*args,**kwargs):
+    from .plotting import add_boundary_plot as _add_boundary_plot
+    return _add_boundary_plot(*args,**kwargs)
+
 
 __all__ = [
     "Activities",
