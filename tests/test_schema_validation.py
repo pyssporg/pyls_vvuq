@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 import pytest
+from lxml import etree as et
 
 from pylsuq.domelem import (
     DomElem,
@@ -24,7 +25,7 @@ from pylsuq.domelem import (
 )
 from pylsuq.errors import XmlSchemaValidationError, XmlSchemaValidationWarning
 from pylsuq.lsuq import UncertaintyQuantification
-from pylsuq.ssv import ParameterSet
+from pylsuq.ssv import Parameter, ParameterSet, Parameters, Real
 
 
 @contextmanager
@@ -97,6 +98,33 @@ class TestDocumentClassesWithoutSchema:
 
 
 class TestSaveValidation:
+    def test_valid_documents_warn_on_nothing(self, tmp_path):
+        ps = ParameterSet(
+            name="ps",
+            parameters=Parameters(
+                [Parameter(name="p", value=Real(value=[1.0, 2.0], unit="kg"))]
+            ),
+        )
+        for doc, name in ((make_uq(), "uq.xml"), (ps, "psv.xml")):
+            with caught_warnings() as caught:
+                save_xml(tmp_path / name, doc, validate="warn")
+            assert schema_warnings(caught) == []
+
+    def test_valid_documents_pass_raise_mode(self, tmp_path):
+        save_xml(tmp_path / "uq.xml", make_uq(), validate="raise")
+
+    def test_scalar_parameterset_writes_version_and_validates(self, tmp_path):
+        # Regression: version="1.0" must be written even though "1.0" is the
+        # auto_version() default, the SSV schema requires the attribute.
+        ps = ParameterSet(
+            name="ps",
+            parameters=Parameters([Parameter(name="p", value=Real(value=[1.0]))]),
+        )
+        path = tmp_path / "psv.xml"
+        save_xml(path, ps, validate="raise")
+        assert ps.version == "1.0"
+        assert et.parse(path).getroot().get("version") == "1.0"
+
     def test_invalid_document_warns_and_still_writes(self, tmp_path):
         path = tmp_path / "uq.xml"
         with pytest.warns(XmlSchemaValidationWarning, match="bogusAttribute"):
@@ -147,6 +175,11 @@ class TestLoadValidation:
         assert len(violations) == 1
         # Violations carry the element path into the parsed document.
         assert violations[0].startswith("/uq:UncertaintyQuantification")
+
+    def test_valid_document_passes_raise_mode(self, tmp_path):
+        path = tmp_path / "uq.xml"
+        save_xml(path, make_uq())
+        assert isinstance(load_xml(path, validate="raise"), UncertaintyQuantification)
 
 
 class TestValidateModes:

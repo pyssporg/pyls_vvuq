@@ -138,7 +138,9 @@ class Parameters(SSVElem):
 class ParameterSet(SSVElem, ATopLevelMetaData, ABaseElement,
                    is_document=True,
                    schema="SystemStructureParameterValues.xsd"):
-    version: str = field(kw_only=True, default="1.0", metadata=xml_attr())
+    # Default None (not "1.0") so the schema-required version attribute is
+    # written even when auto_version() settles on "1.0".
+    version: str | None = field(kw_only=True, default=None, metadata=xml_attr())
     name: str = field(kw_only=True, metadata=xml_attr())
     parameters: Parameters
     units: Units | None = None

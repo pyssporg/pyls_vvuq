@@ -39,7 +39,6 @@ class TestUncertaintyQuantificationDocument:
             requiredAssumptionsRefs="RA1 RA2",
             stmdRef="file:///stmd",
             srmdRef="file:///srmd",
-            version="1.0",
         )
         path = tmp_path / "uq.xml"
         save_xml(path, obj)

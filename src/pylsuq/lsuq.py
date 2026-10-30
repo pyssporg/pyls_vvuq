@@ -708,7 +708,6 @@ class UncertaintyQuantification(UQElem, ATopLevelMetaData,
     requiredAssumptionsRefs: str | None = field(default=None, metadata=xml_attr())
     stmdRef: str | None = field(default=None, metadata=xml_attr())
     srmdRef: str | None = field(default=None, metadata=xml_attr())
-    version: str | None = field(default=None, metadata=xml_attr())
     domains: Domains | None = None
     model: Model | None = None
     activities: Activities | None = None
