@@ -46,7 +46,7 @@ from pylsuq.lsuq import (
 )
 from pylsuq.ssc import ATopLevelMetaData
 from pylsuq.domelem import load_xml, save_xml
-from pylsuq.errors import XmlMappingError
+from pylsuq.errors import XmlMappingError, XmlSchemaValidationError, XmlSchemaValidationWarning
 
 __all__ = [
     "Activities",
@@ -80,6 +80,8 @@ __all__ = [
     "Validation",
     "Verification",
     "XmlMappingError",
+    "XmlSchemaValidationError",
+    "XmlSchemaValidationWarning",
     "load_xml",
     "save_xml",
 ]

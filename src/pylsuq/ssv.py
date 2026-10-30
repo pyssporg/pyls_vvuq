@@ -135,7 +135,9 @@ class Parameters(SSVElem):
 
 
 @dataclass
-class ParameterSet(SSVElem, ATopLevelMetaData, ABaseElement, is_document=True):
+class ParameterSet(SSVElem, ATopLevelMetaData, ABaseElement,
+                   is_document=True,
+                   schema="SystemStructureParameterValues.xsd"):
     version: str = field(kw_only=True, default="1.0", metadata=xml_attr())
     name: str = field(kw_only=True, metadata=xml_attr())
     parameters: Parameters

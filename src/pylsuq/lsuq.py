@@ -696,7 +696,9 @@ class Model(UQElem):
 
 
 @dataclass
-class UncertaintyQuantification(UQElem, ATopLevelMetaData, is_document=True):
+class UncertaintyQuantification(UQElem, ATopLevelMetaData,
+                               is_document=True,
+                               schema="UncertaintyQuantification.xsd"):
     """
     Root element of the UQ1 schema. Inherits the ssc:ATopLevelMetaData
     attribute group (author, fileversion, ...) as XML attributes.

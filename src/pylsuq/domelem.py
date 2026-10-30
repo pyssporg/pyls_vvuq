@@ -1,18 +1,29 @@
 from abc import ABC
 from collections.abc import Callable
-from typing import Union, Any, Optional, ClassVar, get_args, get_origin
+from typing import Union, Any, Optional, ClassVar, Literal, get_args, get_origin
 import types
+import warnings
 from dataclasses import dataclass, field, fields, MISSING, InitVar
+from importlib.resources import files as resource_files
 from operator import attrgetter
 from pathlib import Path
 from enum import Enum
 from lxml import etree as et
 
 from pylsuq.context import Context
-from pylsuq.errors import XmlMappingError, mapping_error
+from pylsuq.errors import (
+    XmlMappingError,
+    mapping_error,
+    XmlSchemaValidationWarning,
+    schema_error,
+    schema_message,
+)
 
 
 METADATA_KEY = "pylsuq"
+
+ValidateMode = Literal["raise", "warn", "off"]
+VALIDATE_MODES = ("raise", "warn", "off")
 
 
 @dataclass
@@ -232,11 +243,18 @@ class DomElem:
 
         return et.QName(ns, cls.__name__)
 
-    def __init_subclass__(cls, is_document=False, **kwargs):
+    def __init_subclass__(cls, is_document=False, schema: str | None = None, **kwargs):
         super().__init_subclass__(**kwargs)
+
+        if schema is not None and not is_document:
+            raise TypeError(
+                f"{cls.__name__}: schema={schema!r} requires is_document=True"
+            )
 
         if is_document:
             _doctype_registry[cls.tag()] = cls
+            if schema is not None:
+                _schema_registry[cls] = schema
 
     def _ensure_ctx_init(self):
         if not hasattr(self, "_ctx") or self._ctx is None:
@@ -253,20 +271,99 @@ class DomElem:
 
 
 _doctype_registry = {}
+_schema_registry: dict[type, str] = {}
+_schema_cache: dict[str, et.XMLSchema] = {}
 
 
-def load_xml(path: str | Path):
+def _schema_path(name: str) -> str:
+    """Filesystem path of the bundled XSD entry point `name`."""
+    return str(resource_files("pylsuq").joinpath("schema", name))
+
+
+def _get_schema(name: str) -> et.XMLSchema:
+    """The compiled schema for entry point `name`, cached across calls.
+
+    lxml resolves xs:import and xs:include through the relative
+    schemaLocation hints in the entry file, so one compiled XMLSchema per
+    entry point covers the whole multi-file grammar.
+    """
+    if name not in _schema_cache:
+        _schema_cache[name] = et.XMLSchema(et.parse(_schema_path(name)))
+    return _schema_cache[name]
+
+
+def _check_validate_mode(validate: ValidateMode):
+    if validate not in VALIDATE_MODES:
+        raise ValueError(
+            f"validate must be one of {', '.join(map(repr, VALIDATE_MODES))}, "
+            f"got {validate!r}"
+        )
+
+
+def _validate_document(elem, cls: type, where: str, validate: ValidateMode):
+    """XSD-validate a document (Element or tree) of document class `cls`.
+
+    Checks `elem` against the schema registered for `cls`, if any:
+    schema violations are warned about ("warn") or raised as
+    XmlSchemaValidationError ("raise"). The mode must already have been
+    confirmed with _check_validate_mode.
+    """
+    if validate == "off":
+        return
+
+    schema_name = _schema_registry.get(cls)
+    if schema_name is None:  # No schema registered: nothing to validate against
+        return
+
+    schema = _get_schema(schema_name)
+    if schema.validate(elem):
+        return
+
+    if validate == "raise":
+        raise schema_error(schema_name, schema.error_log, where)
+    warnings.warn(
+        schema_message(schema_name, schema.error_log, where),
+        XmlSchemaValidationWarning,
+        stacklevel=3,
+    )
+
+
+def load_xml(path: str | Path, validate: ValidateMode = "off"):
+    """Parse the XML document at `path` into its registered document class.
+
+    validate: "off" (default, no validation), "warn" (warn on schema
+    violations) or "raise" (raise XmlSchemaValidationError). Checked
+    before deserialization, so schema problems are reported even when
+    the document could not be mapped either.
+    """
+    _check_validate_mode(validate)
     tree = et.parse(path)
     root = tree.getroot()
 
-    obj = _doctype_registry[root.tag].from_xml(root)
+    cls = _doctype_registry[root.tag]
+    _validate_document(tree, cls, str(path), validate)
+
+    obj = cls.from_xml(root)
     obj._ctx["path"] = path
 
     return obj
 
 
-def save_xml(path: str | Path, elem, pretty_print=True):
+def save_xml(path: str | Path, elem, pretty_print=True, validate: ValidateMode = "warn"):
+    """Serialize `elem` to `path`, then XSD-validate the written document.
+
+    The file is always written first, so a document that violates its
+    schema can still be inspected.
+
+    validate: "warn" (default, warn on schema violations), "raise" (raise
+    XmlSchemaValidationError) or "off" (no validation).
+    """
+    _check_validate_mode(validate)
     xml_elem = elem.to_xml()
     et.cleanup_namespaces(xml_elem)
     with open(path, "w") as f:
         f.write(et.tostring(xml_elem, encoding=str, pretty_print=pretty_print))
+
+    # Re-parse the written file: violations then point at real line/column
+    # numbers of the document on disk.
+    _validate_document(et.parse(path), type(elem), str(path), validate)

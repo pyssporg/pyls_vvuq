@@ -11,5 +11,8 @@ dev = [
     "pytest"
 ]
 
+[tool.setuptools.package-data]
+pylsuq = ["schema/*.xsd", "schema/*.png"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
