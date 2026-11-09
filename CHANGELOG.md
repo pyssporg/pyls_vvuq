@@ -7,3 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-09
+
+### Added
+
+- Python implementation of the LS-UQ standard: `load_xml` / `save_xml` with
+  dataclass-backed XML mapping.
+- First public release; wheel and sdist published from tagged CI builds.
+
