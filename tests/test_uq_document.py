@@ -62,6 +62,13 @@ class TestUncertaintyQuantificationDocument:
         save_xml(path, obj)
         assert load_xml(path) == obj
 
+    def test_non_ascii_metadata_is_utf8_and_validates(self, tmp_path):
+        obj = UncertaintyQuantification(name="experiment", author="Bor\u00e5s")
+        path = tmp_path / "uq.xml"
+        save_xml(path, obj, validate="raise")
+        assert "Bor\u00e5s" in path.read_bytes().decode("utf-8")
+        assert load_xml(path, validate="raise").author == "Bor\u00e5s"
+
 
 class TestDomainMetadataAttributes:
     def test_typed_operational_domain_round_trip(self):

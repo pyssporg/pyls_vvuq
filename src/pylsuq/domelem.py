@@ -350,7 +350,7 @@ def load_xml(path: str | Path, validate: ValidateMode = "off"):
 
 
 def save_xml(path: str | Path, elem, pretty_print=True, validate: ValidateMode = "warn"):
-    """Serialize `elem` to `path`, then XSD-validate the written document.
+    """Serialize `elem` as UTF-8 to `path`, then XSD-validate the document.
 
     The file is always written first, so a document that violates its
     schema can still be inspected.
@@ -361,7 +361,7 @@ def save_xml(path: str | Path, elem, pretty_print=True, validate: ValidateMode =
     _check_validate_mode(validate)
     xml_elem = elem.to_xml()
     et.cleanup_namespaces(xml_elem)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(et.tostring(xml_elem, encoding=str, pretty_print=pretty_print))
 
     # Re-parse the written file: violations then point at real line/column
