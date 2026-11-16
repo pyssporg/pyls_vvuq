@@ -26,7 +26,7 @@ class ATopLevelMetaData(SSCElem):
     generation_datetime: datetime | None = field(
         default=None,
         metadata=xml_attr(
-            name="generationTimeAndDate",
+            name="generationDateAndTime",
             deserialize=datetime.fromisoformat,
             serialize=datetime.isoformat,
         ),

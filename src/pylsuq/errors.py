@@ -1,10 +1,12 @@
 """Diagnostic error types for the XML <-> dataclass mapping layer.
 
 This module centralizes error reporting for pylsuq.domelem, so that the
-serialization/deserialization mechanics can stay free of error-handling
-clutter. Mapping code raises plain exceptions; the from_xml/to_xml field
-loops catch them and re-raise XmlMappingError with the class and field
-where the problem actually resides.
+serialization/deserialization and validation mechanics can stay free of
+error-handling clutter. Mapping code raises plain exceptions; the
+from_xml/to_xml field loops catch them and re-raise XmlMappingError with
+the class and field where the problem actually resides. Schema
+violations are formatted here and surfaced as XmlSchemaValidationError
+or XmlSchemaValidationWarning depending on the validation mode.
 """
 from typing import get_args, get_origin
 
@@ -18,6 +20,28 @@ class XmlMappingError(Exception):
     nested elements the inner XmlMappingError becomes the cause, so the
     full message traces the path from the failing class down to the
     root cause.
+    """
+
+
+class XmlSchemaValidationError(Exception):
+    """Raised when a document violates its XSD schema and validation runs
+    in "raise" mode.
+
+    The message lists every violation with its element path, line and
+    column; the same list is available programmatically in .violations.
+    """
+
+    def __init__(self, message: str, violations=()):
+        super().__init__(message)
+        self.violations = list(violations)
+
+
+class XmlSchemaValidationWarning(UserWarning):
+    """Emitted when a document violates its XSD schema and validation runs
+    in "warn" mode (the default for save_xml).
+
+    Escalate to an exception with
+    ``warnings.filterwarnings("error", category=XmlSchemaValidationWarning)``.
     """
 
 
@@ -72,3 +96,38 @@ def _declared_child_type(field_):
         if arg is not type(None):
             return arg
     return field_.type
+
+
+def format_schema_violation(entry) -> str:
+    """One line per lxml validation log entry: element path, line:column and
+    the validator's message.
+
+    Example: "/uq:UncertaintyQuantification:1:0: ... attribute 'x' is not
+    allowed."
+    """
+    location = entry.path or "<document>"
+    return f"{location}:{entry.line}:{entry.column}: {entry.message}"
+
+
+def schema_message(schema_name: str, error_log, where: str) -> str:
+    """Human-readable summary of every schema violation in error_log.
+
+    Kept apart from the validation mechanics on purpose: formatting is
+    best-effort developer diagnostics, not logic.
+    """
+    violations = [format_schema_violation(e) for e in error_log]
+    plural = "" if len(violations) == 1 else "s"
+    return (
+        f"{where} does not validate against schema {schema_name} "
+        f"({len(violations)} violation{plural}):\n"
+        + "\n".join(f"  {v}" for v in violations)
+    )
+
+
+def schema_error(schema_name: str, error_log, where: str) -> "XmlSchemaValidationError":
+    """Build an XmlSchemaValidationError carrying all violations in
+    error_log as formatted strings."""
+    violations = [format_schema_violation(e) for e in error_log]
+    return XmlSchemaValidationError(
+        schema_message(schema_name, error_log, where), violations
+    )

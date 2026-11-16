@@ -14,8 +14,6 @@ from pylsuq.lsuq import (
     ForwardUncertaintyQuantification,
     GDistribution,
     HyperRectangle,
-    KeyValue,
-    KeyValues,
     LatinHypercube,
     Model,    
     MonotoneSplineCDF,
@@ -24,7 +22,6 @@ from pylsuq.lsuq import (
     ObservedVariable,
     ObservedVariables,
     OperationalDomain,
-    Parameter,
     ParameterSet,
     Parameters,
     Point,
@@ -49,7 +46,7 @@ from pylsuq.lsuq import (
 )
 from pylsuq.ssc import ATopLevelMetaData
 from pylsuq.domelem import load_xml, save_xml
-from pylsuq.errors import XmlMappingError
+from pylsuq.errors import XmlMappingError, XmlSchemaValidationError, XmlSchemaValidationWarning
 
 
 # Lightweight wrappers for plotting functions, to avoid auto-import of plotly, numpy and scipy
@@ -79,7 +76,6 @@ __all__ = [
     "ObservedVariable",
     "ObservedVariables",
     "OperationalDomain",
-    "Parameter",
     "ParameterSet",
     "Parameters",
     "Point",
@@ -95,6 +91,8 @@ __all__ = [
     "Validation",
     "Verification",
     "XmlMappingError",
+    "XmlSchemaValidationError",
+    "XmlSchemaValidationWarning",
     "load_xml",
     "save_xml",
 ]

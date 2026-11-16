@@ -16,6 +16,9 @@ plotting = [
     "scipy>=1.10",
 ]
 
+[tool.setuptools.package-data]
+pylsuq = ["schema/*.xsd", "schema/*.png"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

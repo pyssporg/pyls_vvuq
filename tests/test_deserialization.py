@@ -6,7 +6,7 @@ specific mapping kind: attributes, optionals, unions, lists, dicts,
 single children and namespaces.
 """
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional, Union
+from typing import ClassVar, Optional, TypeAlias, Union
 
 from lxml import etree as et
 
@@ -259,6 +259,37 @@ class TestUnionChild:
         assert obj.pet == Dog(name="Rex")
 
 
+Pet: TypeAlias = Dog | Cat
+
+
+@dataclass
+class UnionListParent(DomElem):
+    pets: list[Pet] = field(default_factory=list)
+
+
+class TestUnionListChildren:
+    def test_reads_mixed_members_in_document_order(self):
+        elem = parse(
+            '<UnionListParent>'
+            '<Cat name="Ronja"/><Dog name="Rex"/><Cat name="Mrsa"/>'
+            '</UnionListParent>'
+        )
+        obj = UnionListParent.from_xml(elem)
+        assert obj.pets == [Cat(name="Ronja"), Dog(name="Rex"), Cat(name="Mrsa")]
+
+    def test_unrelated_elements_are_skipped(self):
+        elem = parse(
+            '<UnionListParent><Other/><Dog name="Rex"/></UnionListParent>'
+        )
+        obj = UnionListParent.from_xml(elem)
+        assert obj.pets == [Dog(name="Rex")]
+
+    def test_no_matching_children_gives_empty_list(self):
+        elem = parse('<UnionListParent/>')
+        obj = UnionListParent.from_xml(elem)
+        assert obj.pets == []
+
+
 # ---------------------------------------------------------------------------
 # Namespaces
 # ---------------------------------------------------------------------------
@@ -317,3 +348,22 @@ class TestUseClassNs:
         )
         obj = MixedNsParent.from_xml(elem, ns=NS_A)
         assert obj.child == ForeignChild("x")
+
+
+@dataclass
+class MixedNsUnionListParent(DomElem):
+    NS: ClassVar[str | None] = NS_A
+    children: list[NsChild | ForeignChild] = field(
+        default_factory=list, metadata=xml_metadata(use_class_ns=True)
+    )
+
+
+class TestUnionListUseClassNs:
+    def test_each_member_read_with_its_own_namespace(self):
+        elem = parse(
+            f'<MixedNsUnionListParent xmlns="{NS_A}" xmlns:b="{NS_B}">'
+            f'<NsChild name="a"/><b:ForeignChild name="b"/>'
+            f'</MixedNsUnionListParent>'
+        )
+        obj = MixedNsUnionListParent.from_xml(elem, ns=NS_A)
+        assert obj.children == [NsChild("a"), ForeignChild("b")]

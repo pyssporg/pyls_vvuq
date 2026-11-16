@@ -6,7 +6,7 @@ mapping kind: attributes, optionals, unions, lists, single children
 and namespaces.
 """
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional, Union
+from typing import ClassVar, Optional, TypeAlias, Union
 
 import pytest
 from lxml import etree as et
@@ -201,6 +201,29 @@ class TestUnionChild:
         assert elem.findall("Dog") == []
 
 
+Pet: TypeAlias = Dog | Cat
+
+
+@dataclass
+class UnionListParent(DomElem):
+    pets: list[Pet] = field(default_factory=list)
+
+
+class TestUnionListChildren:
+    def test_each_member_serializes_with_its_own_tag(self):
+        obj = UnionListParent(pets=[Dog(name="Rex"), Cat(name="Ronja")])
+        elem = obj.to_xml()
+        assert [child.tag for child in elem] == ["Dog", "Cat"]
+
+    def test_empty_list_writes_no_elements(self):
+        elem = UnionListParent().to_xml()
+        assert list(elem) == []
+
+    def test_round_trip_mixed_members(self):
+        obj = UnionListParent(pets=[Dog(name="Rex"), Cat(name="Ronja")])
+        assert UnionListParent.from_xml(obj.to_xml()) == obj
+
+
 # ---------------------------------------------------------------------------
 # Namespaces and tag()
 # ---------------------------------------------------------------------------
@@ -247,6 +270,28 @@ class TestUseClassNs:
     def test_child_written_with_its_own_namespace(self):
         elem = MixedNsParent(child=ForeignChild("x")).to_xml(ns=NS_A)
         assert elem[0].tag == f"{{{NS_B}}}ForeignChild"
+
+
+@dataclass
+class MixedNsUnionListParent(DomElem):
+    NS: ClassVar[str | None] = NS_A
+    children: list[NsChild | ForeignChild] = field(
+        default_factory=list, metadata=xml_metadata(use_class_ns=True)
+    )
+
+
+class TestUnionListUseClassNs:
+    def test_each_member_written_with_its_class_namespace(self):
+        obj = MixedNsUnionListParent(children=[NsChild("a"), ForeignChild("b")])
+        elem = obj.to_xml(ns=NS_A)
+        assert [child.tag for child in elem] == [
+            f"{{{NS_A}}}NsChild", f"{{{NS_B}}}ForeignChild"
+        ]
+
+    def test_round_trip(self):
+        obj = MixedNsUnionListParent(children=[NsChild("a"), ForeignChild("b")])
+        elem = obj.to_xml(ns=NS_A)
+        assert MixedNsUnionListParent.from_xml(elem, ns=NS_A) == obj
 
 
 class TestTag:
