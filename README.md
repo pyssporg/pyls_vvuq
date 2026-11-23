@@ -2,6 +2,13 @@
 
 Python implementation of LS-UQ (Uncertainty Quantification) standard developed as part of the OpenSCALING project.
 
+## Scope
+
+This repository owns the LS-UQ document model and the generic dataclass-based
+XML mapper. SSP SSC/SSV types belong to `pyssp_standard`; pylsuq does not
+re-declare them. The only SSP metadata it maps is the top-level metadata block
+inherited by the LS-UQ experiment setup.
+
 ## Installation
 ```sh
 pip install -e path/to/this/project

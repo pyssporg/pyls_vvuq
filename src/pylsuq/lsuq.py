@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field, KW_ONLY
+from datetime import datetime
 from typing import ClassVar
 from collections.abc import MutableSequence
 
 from lxml import etree as et
 
-from pylsuq.domelem import DomElem, xml_metadata, xml_attr
-from pylsuq.ssc import ATopLevelMetaData
+from pylsuq.domelem import DomElem, xml_attr
 
 
 UQ_NAMESPACE = "http://openscaling.org/UQ1/UncertaintyQuantification"
@@ -223,7 +223,38 @@ class Model(UQElem):
 
 
 @dataclass
-class ExperimentSetup(UQElem, ATopLevelMetaData):
+class _TopLevelMetaData:
+    """SSP top-level metadata as an XML-mapper mixin for the LS-UQ document.
+
+    The SSP SSC type declarations belong to ``pyssp_standard``; this local
+    adapter only describes how the metadata attributes map onto XML.
+    """
+
+    _: KW_ONLY
+    author: str | None = field(default=None, metadata=xml_attr())
+    file_version: str | None = field(default=None, metadata=xml_attr(name="fileversion"))
+    copyright: str | None = field(default=None, metadata=xml_attr())
+    license: str | None = field(default=None, metadata=xml_attr())
+    generation_tool: str | None = field(default=None, metadata=xml_attr(name="generationTool"))
+    generation_datetime: datetime | None = field(
+        default=None,
+        metadata=xml_attr(
+            name="generationTimeAndDate",
+            deserialize=datetime.fromisoformat,
+            serialize=datetime.isoformat,
+        ),
+    )
+
+    def __post_init__(self):
+        if self.generation_tool is None:
+            self.generation_tool = "pylsuq"
+
+        if self.generation_datetime is None:
+            self.generation_datetime = datetime.now().replace(microsecond=0)
+
+
+@dataclass
+class ExperimentSetup(UQElem, _TopLevelMetaData):
     model: Model
     experiment_set: ExperimentSet
     name: str = field(metadata=xml_attr())
