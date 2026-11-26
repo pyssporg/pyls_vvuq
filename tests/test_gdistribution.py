@@ -19,6 +19,14 @@ from pylsuq import (
     Uniform,
     UniformTolerance,
     Weibull,
+    Activities,
+    ForwardUncertaintyQuantification,
+    ObservedVariable,
+    ObservedVariables,
+    ResultSet,
+    UncertaintyQuantification,
+    save_xml,
+    XmlSchemaValidationError,
 )
 
 DISTRIBUTIONS: list[GDistribution] = [
@@ -54,3 +62,18 @@ class TestResultsDistributions:
         assert [type(d) for d in round_tripped.distributions] == [
             type(d) for d in DISTRIBUTIONS
         ]
+
+    def test_normal_observed_variable_rejected_by_schema(self, tmp_path):
+        distribution = Normal(mu=0.0, sigma=1.0, observed_variable="qA")
+        document = UncertaintyQuantification(
+            name="experiment",
+            activities=Activities([
+                ForwardUncertaintyQuantification(
+                    observed_variables=ObservedVariables([ObservedVariable(name="qA")]),
+                    result_set=ResultSet([Results(distributions=[distribution], point="P0")]),
+                )
+            ]),
+        )
+        path = tmp_path / "uq.xml"
+        with pytest.raises(XmlSchemaValidationError, match="observedVariable"):
+            save_xml(path, document, validate="raise")
