@@ -449,11 +449,7 @@ class ResultSet(UQElem):
 
 @dataclass
 class PointSet(UQElem, MutableSequence):
-<<<<<<< HEAD
     points: Points
-=======
-    points: Points    
->>>>>>> remotes/origin/lsuq_prototyping
     id: str = field(metadata=xml_attr())
     parameters: Parameters | None = None
 
