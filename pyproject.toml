@@ -5,3 +5,25 @@ authors = [{name = "Axel Matstoms", email = "axel.matstoms@saabgroup.com"}]
 dependencies = [
     "lxml"
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]
+plotting = [
+    "numpy>=1.24",
+    "plotly>=5.0",
+    "scipy>=1.10",
+]
+plotting-matplotlib = [
+    "numpy>=1.24",
+    "matplotlib>=3.7",
+    "scipy>=1.10",
+]
+
+[tool.setuptools.package-data]
+pylsuq = ["schema/*.xsd", "schema/*.png"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

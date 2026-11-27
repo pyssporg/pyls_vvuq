@@ -10,6 +10,27 @@ pip install -e path/to/this/project
 ## File I/O
 Loading and saving documents can be done through the `load_xml` and `save_xml` functions. The `load_xml` function automatically uses the correct Python class based on the tag name and namespace of the root element.
 
+Saved and loaded documents are XSD schema checked against the schemas bundled in `src/pylsuq/schema/`. `save_xml` validates by default and warns on violations — the file is always written first, so a document that does not validate can still be inspected. Pass `validate="raise"` to raise `XmlSchemaValidationError` (listing every violation with its element path, line and column) or `validate="off"` to skip checking. `load_xml` accepts the same `validate` modes but defaults to `"off"`.
+
+## Plotting
+Plotting dependencies are optional. Install `pylsuq[plotting]` for Plotly or
+`pylsuq[plotting-matplotlib]` for Matplotlib. Plotly remains the default
+backend; select Matplotlib explicitly with `backend="matplotlib"`. The
+Matplotlib backend returns an `Axes` object, which can be passed back as `fig`
+to add more domains:
+
+```python
+import pylsuq
+
+ax = pylsuq.add_domain_plot(domain, ["x", "y"], backend="matplotlib")
+pylsuq.add_domain_plot(other_domain, ["x", "y"], backend="matplotlib", fig=ax)
+ax.figure.savefig("domains.png")
+```
+
+Both backends support two- and three-dimensional boundary plots, including
+hyper-rectangles, convex hulls, and experiment points. Plotly hover interactions
+are specific to the Plotly backend.
+
 ## XML &ndash; Python object
 This implementation is based on a mini-library (included in this repo) intended to simplify the mapping between XML and Python objects. The mini-library is based on Python dataclasses. The following is a simple example of what is possible.
 ```python

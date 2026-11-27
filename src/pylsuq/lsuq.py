@@ -1,12 +1,12 @@
-from dataclasses import dataclass, field, KW_ONLY
-from typing import ClassVar
+from dataclasses import dataclass, field
+from typing import ClassVar, TypeAlias
 from collections.abc import MutableSequence
+from enum import Enum
 
 from lxml import etree as et
 
-from pylsuq.domelem import DomElem, xml_metadata, xml_attr
+from pylsuq.domelem import DomElem, xml_attr
 from pylsuq.ssc import ATopLevelMetaData
-
 
 UQ_NAMESPACE = "http://openscaling.org/UQ1/UncertaintyQuantification"
 et.register_namespace("uq", UQ_NAMESPACE)
@@ -14,7 +14,24 @@ et.register_namespace("uq", UQ_NAMESPACE)
 
 class UQElem(DomElem):
     NS: ClassVar[str | None] = UQ_NAMESPACE
+    
 
+
+# ============================================================================
+# ENUMERATIONS
+# ============================================================================
+
+class TypedOperationalDomainKind(Enum):
+    """Domain role in the ODD/OD/ModelOD hierarchy"""
+    OPERATIONAL_DESIGN_DOMAIN = "OperationalDesignDomain"
+    REQUESTED_OPERATIONAL_DOMAIN = "RequestedOperationalDomain"
+    MODELED_OPERATIONAL_DOMAIN = "ModeledOperationalDomain"
+
+
+
+# ============================================================================
+# LEAF CLASSES (no dependencies on other custom classes)
+# ============================================================================
 
 @dataclass
 class Point(UQElem):
@@ -28,21 +45,217 @@ class Point(UQElem):
 
 
 @dataclass
-class Parameter(DomElem):
-    pass
+class Axis(UQElem):
+    name: str = field(metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    id: str | None = field(default=None, metadata=xml_attr())
 
+
+@dataclass
+class CredibilityAssessment(UQElem):
+    level: str = field(metadata=xml_attr())
+    purpose: str | None = field(default=None, metadata=xml_attr())
+    standard: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class ProcessContext(UQElem):
+    """Process and phase context for an artifact"""
+    process: str | None = field(default=None, metadata=xml_attr())
+    phase: str | None = field(default=None, metadata=xml_attr())
+    glueParticleRef: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class ObservedVariable(UQElem):
+    name: str = field(metadata=xml_attr())
+    distribution_approximation: str | None = field(
+        default=None,
+        metadata=xml_attr(name="distributionApproximation")
+    )
+    unit: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class ErrorMetric(UQElem):
+    """
+    Represents an error metric in results.
+    """
+    type: str = field(metadata=xml_attr())
+    value: float = field(metadata=xml_attr())
+    name: str | None = field(default=None, metadata=xml_attr())
+    threshold: float | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+@dataclass
+class ActivitySettings(UQElem):
+    """Settings for an activity."""
+    method: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class Annotations(UQElem):
+    """Placeholder for Annotations"""
+    content: str | None = None
+
+
+@dataclass
+class RequiredAssumptions(UQElem):
+    """Placeholder for RequiredAssumptions"""
+    id: str | None = None
+    description: str | None = None
+
+
+# ============================================================================
+# DISTRIBUTIONS
+# ============================================================================
+ 
+@dataclass
+class Normal(UQElem):
+    """Normal distribution."""
+    mu: float = field(metadata=xml_attr())
+    sigma: float = field(metadata=xml_attr())
+    minimum: float | None = field(default=None, metadata=xml_attr())
+    maximum: float | None = field(default=None, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class NormalTolerance(UQElem):
+    """Tolerance form of Normal distribution."""
+    nominal: float = field(metadata=xml_attr())
+    relTol: float = field(default=0.0, metadata=xml_attr())
+    absTol: float = field(default=0.0, metadata=xml_attr())
+    sigmaFactor: float = field(default=3.0, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class Uniform(UQElem):
+    """Continuous uniform distribution."""
+    minimum: float = field(metadata=xml_attr())
+    maximum: float = field(metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class UniformTolerance(UQElem):
+    """Tolerance form of Uniform distribution."""
+    nominal: float = field(metadata=xml_attr())
+    relTol: float = field(default=0.0, metadata=xml_attr())
+    absTol: float = field(default=0.0, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class Weibull(UQElem):
+    """Weibull distribution."""
+    shape: float = field(metadata=xml_attr())
+    scale: float = field(metadata=xml_attr())
+    maximum: float | None = field(default=None, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class Cauchy(UQElem):
+    """Cauchy distribution."""
+    x0: float = field(metadata=xml_attr())
+    gamma: float = field(metadata=xml_attr())
+    minimum: float | None = field(default=None, metadata=xml_attr())
+    maximum: float | None = field(default=None, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class CauchyTolerance(UQElem):
+    """Tolerance form of Cauchy distribution."""
+    nominal: float = field(metadata=xml_attr())
+    relTol: float = field(default=0.0, metadata=xml_attr())
+    absTol: float = field(default=0.0, metadata=xml_attr())
+    boundaryProbability: float = field(default=0.997, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+
+@dataclass
+class MonotoneSplineCDF(UQElem):
+    """Monotone spline cumulative distribution function."""
+    x: list[float] = field(
+        metadata=xml_attr(
+            serialize=lambda cs: " ".join(str(c) for c in cs),
+            deserialize=lambda s: [float(c) for c in s.strip().split()],
+        ))
+    y: list[float] = field(
+        metadata=xml_attr(
+            serialize=lambda cs: " ".join(str(c) for c in cs),
+            deserialize=lambda s: [float(c) for c in s.strip().split()],
+        ))
+    degree: int = field(default=3, metadata=xml_attr())
+    unit: str | None = field(default=None, metadata=xml_attr())
+    observed_variable: str | None = field(
+        default=None,
+        metadata=xml_attr(name="observedVariable")
+    )
+
+# Group of Distributions
+GDistribution: TypeAlias = (     
+    Normal
+    | NormalTolerance
+    | Uniform
+    | UniformTolerance
+    | Weibull
+    | Cauchy
+    | CauchyTolerance
+    | MonotoneSplineCDF
+)
+
+
+
+
+# ============================================================================
+# COLLECTION CLASSES (depend on leaf classes)
+# ============================================================================    
 
 @dataclass
 class UncertainParameter(UQElem):
-    pass
-
-
-@dataclass
-class Parameters(UQElem):
-    # uncertain_parameters: list[UncertainParameter]
-
-    id: str | None = field(default=None, metadata=xml_attr())
-
+    """Parameter with uncertainty."""
+    distribution: GDistribution
+    name: str = field(metadata=xml_attr())    
+    id: str | None = field(default = None,metadata=xml_attr())
+    description: str | None = field(default = None,metadata=xml_attr())
+    source: str | None = field(default = None,metadata=xml_attr())
+    sourceInfo: str | None = field(default = None,metadata=xml_attr())    
+    
 
 @dataclass
 class Points(UQElem, MutableSequence):
@@ -62,100 +275,6 @@ class Points(UQElem, MutableSequence):
 
     def insert(self, idx, value):
         self.points.insert(idx, value)
-
-
-@dataclass
-class PointSet(UQElem, MutableSequence):
-    points: Points
-    parameters: Parameters
-    id: str = field(metadata=xml_attr())
-
-    def __getitem__(self, idx):
-        return self.points[idx]
-
-    def __setitem__(self, idx, value):
-        self.points[idx] = value
-
-    def __delitem__(self, idx):
-        del self.points[idx]
-
-    def __len__(self):
-        return len(self.points)
-
-    def insert(self, idx, value):
-        self.points.insert(idx, value)
-
-
-@dataclass
-class ExperimentPoints(UQElem, MutableSequence):
-    point_sets: list[PointSet]
-
-    def __getitem__(self, idx):
-        return self.point_sets[idx]
-
-    def __setitem__(self, idx, value):
-        self.point_sets[idx] = value
-
-    def __delitem__(self, idx):
-        del self.point_sets[idx]
-
-    def __len__(self):
-        return len(self.point_sets)
-
-    def insert(self, idx, value):
-        self.point_sets.insert(idx, value)
-
-
-@dataclass
-class Box(UQElem, MutableSequence):
-    points: list[Point]
-
-    def __getitem__(self, idx):
-        return self.points[idx]
-
-    def __setitem__(self, idx, value):
-        self.points[idx] = value
-
-    def __delitem__(self, idx):
-        del self.points[idx]
-
-    def __len__(self):
-        return len(self.points)
-
-    def insert(self, idx, value):
-        self.points.insert(idx, value)
-
-
-@dataclass
-class ConvexHull(UQElem, MutableSequence):
-    points: list[Point]
-
-    def __getitem__(self, idx):
-        return self.points[idx]
-
-    def __setitem__(self, idx, value):
-        self.points[idx] = value
-
-    def __delitem__(self, idx):
-        del self.points[idx]
-
-    def __len__(self):
-        return len(self.points)
-
-    def insert(self, idx, value):
-        self.points.insert(idx, value)
-
-
-@dataclass
-class Boundary(UQElem):
-    shape: ConvexHull | Box
-
-
-@dataclass
-class Axis(UQElem):
-    name: str = field(metadata=xml_attr())
-    unit: str | None = field(default=None, metadata=xml_attr())
-    id: str | None = field(default=None, metadata=xml_attr())
 
 
 @dataclass
@@ -179,38 +298,392 @@ class Axes(UQElem, MutableSequence):
 
 
 @dataclass
-class OperationalDomain(UQElem, is_document=True):
+class ObservedVariables(UQElem, MutableSequence):
+    """
+    Container for multiple observed variables in a UQ activity.
+    Implements MutableSequence for list-like operations on variables.
+    """
+    observed_variables: list[ObservedVariable] = field(default_factory=list)
+
+    def __getitem__(self, idx: int) -> ObservedVariable:
+        """Get an observed variable by index."""
+        return self.observed_variables[idx]
+
+    def __setitem__(self, idx: int, value: ObservedVariable) -> None:
+        """Set an observed variable at index."""
+        if not isinstance(value, ObservedVariable):
+            raise TypeError(f"Expected ObservedVariable, got {type(value)}")
+        self.observed_variables[idx] = value
+
+    def __delitem__(self, idx: int) -> None:
+        """Delete an observed variable at index."""
+        del self.observed_variables[idx]
+
+    def __len__(self) -> int:
+        """Return the number of observed variables."""
+        return len(self.observed_variables)
+
+    def insert(self, idx: int, value: ObservedVariable) -> None:
+        """Insert an observed variable at index."""
+        if not isinstance(value, ObservedVariable):
+            raise TypeError(f"Expected ObservedVariable, got {type(value)}")
+        self.observed_variables.insert(idx, value)
+
+
+@dataclass
+class Parameters(UQElem):
+    uncertain_parameters: list[UncertainParameter] = field(default_factory=list)
+    id: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class ConvexHull(UQElem, MutableSequence):
+    points: list[Point] = field(default_factory=list)
+
+    def __getitem__(self, idx):
+        return self.points[idx]
+
+    def __setitem__(self, idx, value):
+        self.points[idx] = value
+
+    def __delitem__(self, idx):
+        del self.points[idx]
+
+    def __len__(self):
+        return len(self.points)
+
+    def insert(self, idx, value):
+        self.points.insert(idx, value)
+
+
+@dataclass
+class HyperRectangle(UQElem, MutableSequence):
+    points: list[Point] = field(default_factory=list)
+
+    def __getitem__(self, idx):
+        return self.points[idx]
+
+    def __setitem__(self, idx, value):
+        self.points[idx] = value
+
+    def __delitem__(self, idx):
+        del self.points[idx]
+
+    def __len__(self):
+        return len(self.points)
+
+    def insert(self, idx, value):
+        self.points.insert(idx, value)
+
+
+@dataclass
+class Results(UQElem):
+    """
+    Container for results, which can be distributions or error metrics.
+    Supports external data sources via AExternalSource.
+    """
+    error_metrics: list[ErrorMetric] = field(default_factory=list)
+    distributions: list[GDistribution] = field(default_factory=list)
+    point: str | None = field(default=None, metadata=xml_attr())
+    source: str | None = field(default=None, metadata=xml_attr())
+    type: str | None = field(default=None, metadata=xml_attr())
+    source_base: str | None = field(
+        default=None,
+        metadata=xml_attr(name="sourceBase")
+    )
+
+    def set_point_reference(self, point_id: str) -> None:
+        """Set reference to a point by ID."""
+        self.point = point_id
+
+@dataclass
+class PseudoRandom(UQElem):
+    """Pseudo random sampling type"""
+    numberOfSamples: int = field(metadata = xml_attr())
+    annotations: Annotations | None = None
+
+@dataclass
+class LatinHypercube(UQElem):
+    """Latin Hypercube random sampling type"""
+    numberOfSamples: int = field(metadata = xml_attr())
+    annotations: Annotations | None = None
+    
+@dataclass
+class VendorSpecific(UQElem):
+    """Placeholder for vendor specific type"""
+    annotations: Annotations | None = None
+
+@dataclass
+class SamplingMethod(UQElem):
+    sampling_methods: list[PseudoRandom | LatinHypercube | VendorSpecific] = field(default_factory=list)
+    def add_pseudo_random(self, pseudorandom: PseudoRandom) -> None:
+        """Add a pseudo random sampling method"""
+        self.sampling_methods.append(pseudorandom)
+    
+    def add_latin_hypercube(self, latinhypercube: LatinHypercube) -> None:
+        """Add a latin hypercube sampling method"""
+        self.sampling_methods.append(latinhypercube)
+    
+    def add_vendor_specific(self, vendorspecific: VendorSpecific) -> None:
+        """Add a vendor specific sampling method"""
+        self.sampling_methods.append(vendorspecific)
+            
+# ============================================================================
+# BOUNDARY TYPES
+# ============================================================================
+
+@dataclass
+class Boundary(UQElem):
+    shape: ConvexHull | HyperRectangle
+
+
+# ============================================================================
+# GEOMETRY & DOMAIN TYPES
+# ============================================================================
+
+@dataclass
+class ResultSet(UQElem):
+    """Container for multiple Results elements."""
+    results: list[Results] = field(default_factory=list)
+
+
+@dataclass
+class PointSet(UQElem, MutableSequence):
+    points: Points
+    id: str = field(metadata=xml_attr())
+    parameters: Parameters | None = None
+
+    def __getitem__(self, idx):
+        return self.points[idx]
+
+    def __setitem__(self, idx, value):
+        self.points[idx] = value
+
+    def __delitem__(self, idx):
+        del self.points[idx]
+
+    def __len__(self):
+        return len(self.points)
+
+    def insert(self, idx, value):
+        self.points.insert(idx, value)
+
+
+@dataclass
+class ExperimentPoints(UQElem, MutableSequence):
+    point_sets: list[PointSet] = field(default_factory=list)
+
+    def __getitem__(self, idx):
+        return self.point_sets[idx]
+
+    def __setitem__(self, idx, value):
+        self.point_sets[idx] = value
+
+    def __delitem__(self, idx):
+        del self.point_sets[idx]
+
+    def __len__(self):
+        return len(self.point_sets)
+
+    def insert(self, idx, value):
+        self.point_sets.insert(idx, value)
+
+
+@dataclass
+class OperationalDomain(UQElem):
     axes: Axes
     boundary: Boundary
-    experiment_points: ExperimentPoints
+    experiment_points: ExperimentPoints | None = None
 
 
 @dataclass
 class ParameterSet(UQElem):
-    parameters: Parameters | None = field(default=None)
-    operational_domain: OperationalDomain | None = field(default=None)
-    # enumerations: Enumerations | None = field(default=None)
-    # units: Units | None = field(default=None)
-    # annotations: Annotations | None = field(default=None)
-
+    parameters: Parameters | None = None
+    operational_domain: OperationalDomain | None = None
     id: str | None = field(default=None, metadata=xml_attr())
     description: str | None = field(default=None, metadata=xml_attr())
 
 
+    
+# ============================================================================
+# DOMAIN HIERARCHY TYPES
+# ============================================================================
+
+@dataclass
+class TypedOperationalDomain(UQElem):
+    """Domain with semantic metadata: kind, hierarchy, and credibility."""
+    id: str = field(metadata=xml_attr())
+    kind: TypedOperationalDomainKind = field(metadata=xml_attr())
+    name: str | None = field(default=None, metadata=xml_attr())
+    geometryKind: str | None = field(default=None, metadata=xml_attr())
+    parentRef: str | None = field(default=None, metadata=xml_attr())
+    srmdRef: str | None = field(default=None, metadata=xml_attr())
+    credibility_assessment: CredibilityAssessment | None = None
+    process_context: ProcessContext | None = None
+    axes: Axes | None = None
+    boundary: Boundary | None = None
+    experiment_points: ExperimentPoints | None = None
+
+
+@dataclass
+class ActivityDomain(UQElem):
+    """
+    Domain scoped to a specific activity (DoVerification, DoCalibration, DoV, DoSA, DoUQ).
+    A sub-region of parent ModelOD with its own boundary.
+    """
+    id: str = field(metadata=xml_attr())
+    kind: str = field(metadata=xml_attr())
+    name: str | None = field(default = None,metadata=xml_attr())
+    domainRef: str | None = field(default = None,metadata=xml_attr())
+    srmdRef: str | None = field(default = None,metadata=xml_attr())
+    axes: Axes | None = None
+    boundary: Boundary | None = None
+    experiment_points: ExperimentPoints | None = None
+    settings: ActivitySettings | None = None
+    result_set: ResultSet | None = None
+
+
+@dataclass
+class Domains(UQElem):
+    """Top-level container for all domain definitions"""
+    typed_operational_domains: list[TypedOperationalDomain] = field(default_factory=list)
+    activity_domains: list[ActivityDomain] = field(default_factory=list)
+
+    def add_typed_operational_domain(self, domain: TypedOperationalDomain) -> None:
+        """Add a TypedOperationalDomain (ODD, RequestedOD, or ModeledOD)"""
+        self.typed_operational_domains.append(domain)
+
+    def add_activity_domain(self, domain: ActivityDomain) -> None:
+        """Add an ActivityDomain (DoVerification, DoCalibration, etc.)"""
+        self.activity_domains.append(domain)
+
+
+# ============================================================================
+# ACTIVITY TYPES
+# ============================================================================
+
 @dataclass
 class ForwardUncertaintyQuantification(UQElem):
-    parameter_set: ParameterSet
-    # observed_variables: ObservedVariables
-    # desired_results: DesiredResults
-    # simulation_setting: SimulationSetting
-    # sampling_method: SamplingMethod
+    parameter_set: ParameterSet | None = None
+    observed_variables: ObservedVariables | None = None
+    sampling_method : SamplingMethod | None = None
+    result_set: ResultSet | None = None
+    activity_domain_ref: str | None = field(
+        default=None,
+        metadata=xml_attr(name="activityDomainRef")
+    )
 
 
 @dataclass
-class ExperimentSet(UQElem):
-    forward_uq: ForwardUncertaintyQuantification
+class Verification(UQElem):
+    parameter_set: ParameterSet
+    observed_variables: ObservedVariables | None = None  
+    sampling_method : SamplingMethod | None = None  
     id: str | None = field(default=None, metadata=xml_attr())
 
+
+@dataclass
+class Calibration(UQElem):
+    parameter_set: ParameterSet
+    observed_variables: ObservedVariables | None = None
+    id: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class Validation(UQElem):
+    parameter_set: ParameterSet | None = None
+    observed_variables: ObservedVariables | None = None
+    sampling_method : SamplingMethod | None = None
+    result_set: ResultSet | None = None
+    id: str | None = field(default=None, metadata=xml_attr())
+    activity_domain_ref: str | None = field(
+        default=None,
+        metadata=xml_attr(name="activityDomainRef")
+    )
+
+
+@dataclass
+class SensitivityAnalysis(UQElem):
+    parameter_set: ParameterSet
+    observed_variables: ObservedVariables | None = None
+    sampling_method : SamplingMethod | None = None
+    id: str | None = field(default=None, metadata=xml_attr())
+
+
+@dataclass
+class Activities(UQElem, MutableSequence):
+    """
+    Container for all activity types.
+    Activities can be interspersed in any order (Verification, Calibration,
+    Validation, SensitivityAnalysis, ForwardUncertaintyQuantification).
+    """
+    activities: list[ForwardUncertaintyQuantification | Verification | Validation | Calibration | SensitivityAnalysis] = field(default_factory=list)
+    id: str | None = field(default=None, metadata=xml_attr())
+
+    def __getitem__(self, idx: int):
+        """Get an activity by index."""
+        return self.activities[idx]
+
+    def __setitem__(self, idx: int, value) -> None:
+        """Set an activity at index."""
+        self.activities[idx] = value
+
+    def __delitem__(self, idx: int) -> None:
+        """Delete an activity at index."""
+        del self.activities[idx]
+
+    def __len__(self) -> int:
+        """Return total number of activities."""
+        return len(self.activities)
+
+    def insert(self, idx: int, value) -> None:
+        """Insert an activity at index."""
+        self.activities.insert(idx, value)
+
+    def add_verification(self, verification: Verification) -> None:
+        """Add a verification activity."""
+        self.activities.append(verification)
+
+    def add_calibration(self, calibration: Calibration) -> None:
+        """Add a calibration activity."""
+        self.activities.append(calibration)
+
+    def add_validation(self, validation: Validation) -> None:
+        """Add a validation activity."""
+        self.activities.append(validation)
+
+    def add_sensitivity_analysis(self, sa: SensitivityAnalysis) -> None:
+        """Add a sensitivity analysis activity."""
+        self.activities.append(sa)
+
+    def add_forward_uq(self, forward_uq: ForwardUncertaintyQuantification) -> None:
+        """Add a forward UQ activity."""
+        self.activities.append(forward_uq)
+
+    def get_verifications(self) -> list[Verification]:
+        """Return all verification activities in document order."""
+        return [a for a in self.activities if isinstance(a, Verification)]
+
+    def get_calibrations(self) -> list[Calibration]:
+        """Return all calibration activities in document order."""
+        return [a for a in self.activities if isinstance(a, Calibration)]
+
+    def get_validations(self) -> list[Validation]:
+        """Return all validation activities in document order."""
+        return [a for a in self.activities if isinstance(a, Validation)]
+
+    def get_sensitivity_analyses(self) -> list[SensitivityAnalysis]:
+        """Return all sensitivity analysis activities in document order."""
+        return [a for a in self.activities if isinstance(a, SensitivityAnalysis)]
+
+    def get_forward_uqs(self) -> list[ForwardUncertaintyQuantification]:
+        """Return all forward UQ activities in document order."""
+        return [a for a in self.activities if isinstance(a, ForwardUncertaintyQuantification)]
+
+
+# ============================================================================
+# MODEL & ROOT ELEMENT
+# ============================================================================
 
 @dataclass
 class Model(UQElem):
@@ -223,11 +696,34 @@ class Model(UQElem):
 
 
 @dataclass
-class ExperimentSetup(UQElem, ATopLevelMetaData):
-    model: Model
-    experiment_set: ExperimentSet
+class UncertaintyQuantification(UQElem, ATopLevelMetaData,
+                               is_document=True,
+                               schema="UncertaintyQuantification.xsd"):
+    """
+    Root element of the UQ1 schema. Inherits the ssc:ATopLevelMetaData
+    attribute group (author, fileversion, ...) as XML attributes.
+    """
     name: str = field(metadata=xml_attr())
     info: str | None = field(default=None, metadata=xml_attr())
+    requiredAssumptionsRefs: str | None = field(default=None, metadata=xml_attr())
+    stmdRef: str | None = field(default=None, metadata=xml_attr())
+    srmdRef: str | None = field(default=None, metadata=xml_attr())
+    domains: Domains | None = None
+    model: Model | None = None
+    activities: Activities | None = None
+    annotations: Annotations | None = None
+
+    def set_domains(self, domains: Domains) -> None:
+        """Set the Domains container."""
+        self.domains = domains
+
+    def set_model(self, model: Model) -> None:
+        """Set the Model."""
+        self.model = model
+
+    def set_activities(self, activities: Activities) -> None:
+        """Set the Activities container."""
+        self.activities = activities
 
 
 def main():
@@ -236,15 +732,6 @@ def main():
     od = OperationalDomain(axes=axes, boundary=boundary, experiment_points=ExperimentPoints(point_sets=[]))
     elem = od.to_xml(ns=UQ_NAMESPACE)
     print(et.tostring(elem, pretty_print=True, encoding=str))
-
-    # model = Model(name="Example model", file="Example.fmu")
-    # experiment_set = ExperimentSet(forward_uq=ForwardUncertaintyQuantification(ParameterSet()))
-    # experiment_setup = ExperimentSetup(
-    #     model=model, experiment_set=experiment_set, name="Example setup"
-    # )
-
-    # elem = experiment_setup.to_xml()
-    # print(et.tostring(elem, pretty_print=True, encoding=str))
 
 
 if __name__ == "__main__":
