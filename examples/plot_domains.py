@@ -5,6 +5,8 @@ from scipy.spatial import ConvexHull, QhullError
 import webbrowser
 # Example of visualising operational and activity domains
 
+PLOTTING_BACKEND = "plotly"  # Change to "matplotlib" to use matplotlib.
+
 def ConvexHull_boundary_points_from_points(points: lsuq.Points):
     """
     Return unique original coordinates belonging to the convex hull boundary.
@@ -159,21 +161,36 @@ DoUQ_1 = lsuq.ActivityDomain(id = 'DoUQ_1', name ='DoUQ_1', kind = 'UncertaintyQ
 # Decide which axes to project on
 plot_axes = [("uA","uB"),("uA","uB","pA"),("uA","pA","pB")]
 
+if PLOTTING_BACKEND == "matplotlib":
+    import matplotlib.pyplot as plt
+
 for ip,sub_plot_axes in enumerate(plot_axes):
     
     # Let first plot define the first figure (plot od first)
-    fig = lsuq.add_domain_plot(od,plot_axes = sub_plot_axes,style = {'color':'cornflowerblue'})      
+    fig = lsuq.add_domain_plot(
+        od,
+        plot_axes=sub_plot_axes,
+        style={"color": "cornflowerblue"},
+        backend=PLOTTING_BACKEND,
+    )
     
     # Add the uq domain to the same figure
-    lsuq.add_domain_plot(DoUQ_1,plot_axes = sub_plot_axes,style = {'color':'orangered'},fig=fig)   
+    lsuq.add_domain_plot(
+        DoUQ_1,
+        plot_axes=sub_plot_axes,
+        style={"color": "orangered"},
+        fig=fig,
+        backend=PLOTTING_BACKEND,
+    )
     
-    # Save figure in html file
-    fig.write_html(output_dir / Path( "domains_"+ str(ip) +".html"))
+    if PLOTTING_BACKEND == "matplotlib":
+        fig.grid(True)
+        fig.figure.savefig(output_dir / f"domains_{ip}.png")
+    else:
+        # Save and open the Plotly figure in the default web browser.
+        html_path = output_dir / f"domains_{ip}.html"
+        fig.write_html(html_path)
+        webbrowser.open(html_path.resolve().as_uri())
 
-    # Open the saved html file in the default web browser
-    html_path = output_dir / Path( "domains_"+ str(ip) +".html")
-    webbrowser.open(html_path.resolve().as_uri())
-
-
-
-
+if PLOTTING_BACKEND == "matplotlib":
+    plt.show()

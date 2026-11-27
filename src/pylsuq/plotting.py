@@ -8,15 +8,50 @@ import warnings
 def _require_plotting_dependencies():
     try:
         import numpy as np
-        import plotly.graph_objects as go
         from scipy.spatial import ConvexHull, QhullError
     except ImportError as exc:
         raise ImportError(
-            "Domain plotting requires optional dependencies. "
-            "Install them with: pip install pylsuq[plotting]"
+            "Domain plotting requires NumPy and SciPy. "
+            "Install them with: pip install pylsuq[plotting] "
+            "or pip install pylsuq[plotting-matplotlib]"
         ) from exc
 
-    return np, go, ConvexHull, QhullError
+    return np, ConvexHull, QhullError
+
+
+def _require_plotly():
+    try:
+        import plotly.graph_objects as go
+    except ImportError as exc:
+        raise ImportError(
+            "Plotly plotting requires the optional dependency 'plotly'. "
+            "Install it with: pip install pylsuq[plotting]"
+        ) from exc
+    return go
+
+
+def _require_matplotlib():
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        raise ImportError(
+            "Matplotlib plotting requires the optional dependency 'matplotlib'. "
+            "Install it with: pip install pylsuq[plotting-matplotlib]"
+        ) from exc
+    return plt
+
+
+def _is_plotly_figure(fig: Any) -> bool:
+    return hasattr(fig, "add_trace")
+
+
+def _validate_backend(backend: str, fig: Any = None) -> None:
+    if backend not in {"plotly", "matplotlib"}:
+        raise ValueError("backend must be 'plotly' or 'matplotlib'.")
+    if fig is not None and _is_plotly_figure(fig) != (backend == "plotly"):
+        expected = "Plotly Figure" if backend == "plotly" else "Matplotlib Axes"
+        raise TypeError(f"fig must be a {expected} when backend={backend!r}.")
+
 
 def _axis_labels(
     axis_indices: list[int],
@@ -100,6 +135,18 @@ def _style(style: dict | None) -> dict[str, Any]:
     }
 
 def _next_domain_color(fig) -> str:
+    color_index = getattr(fig, "_pylsuq_domain_color_index", 0)
+    fig._pylsuq_domain_color_index = color_index + 1
+    if not _is_plotly_figure(fig):
+        colorway = [
+            item["color"]
+            for item in fig._get_lines._cycler_items
+            if "color" in item
+        ]
+        if not colorway:
+            colorway = ["#1f77b4"]
+        return colorway[color_index % len(colorway)]
+
     from plotly.colors import qualitative
 
     colorway = fig.layout.colorway
@@ -107,9 +154,6 @@ def _next_domain_color(fig) -> str:
         colorway = fig.layout.template.layout.colorway
     if not colorway:
         colorway = qualitative.Plotly
-
-    color_index = getattr(fig, "_pylsuq_domain_color_index", 0)
-    fig._pylsuq_domain_color_index = color_index + 1
     return colorway[color_index % len(colorway)]
 
 def _hover_template(
@@ -141,7 +185,7 @@ def _hover_template(
 
 def _hyper_rectangle_corners(bounds:list[list[int]]):
     """Return all corners of a two- or three-dimensional axis-aligned hyper_rectangle."""
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+    (np,ConvexHull,QhullError) = _require_plotting_dependencies()
     corners = [[]]
     
     for lower, upper in bounds:
@@ -168,7 +212,14 @@ def _marker_kwargs(style: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 def _set_axis_titles(fig, labels: list[str]) -> None:
-    """Set Plotly axis titles for the active two- or three-dimensional projection."""
+    """Set axis titles for the active two- or three-dimensional projection."""
+    if not _is_plotly_figure(fig):
+        fig.set_xlabel(labels[0])
+        fig.set_ylabel(labels[1])
+        if len(labels) == 3:
+            fig.set_zlabel(labels[2])
+        return
+
     if len(labels) == 2:
         fig.update_layout(xaxis_title=labels[0], yaxis_title=labels[1])
     else:
@@ -193,7 +244,7 @@ def _boundary_coordinates(corners: Any, dimension: int) -> tuple[list[float | No
 
 def _coplanar_perimeter(points):
     """Return the perimeter of coplanar 3D points."""
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+    (np,ConvexHull,QhullError) = _require_plotting_dependencies()
     centered = points - points.mean(axis=0)
 
     _, singular_values, vh = np.linalg.svd(
@@ -231,9 +282,69 @@ def _add_line_marker_trace(fig,
                            mode = "lines+markers",
                            hovertemplate: str | None = None,
                            customdata: Any = None) -> Any:
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+    (np,ConvexHull,QhullError) = _require_plotting_dependencies()
     if is_3d is None:
         is_3d = len(coordinates) == 3
+    if not _is_plotly_figure(fig):
+        marker_map = {
+            "circle": "o",
+            "diamond": "D",
+            "diamond-open": "D",
+            "square": "s",
+            "square-open": "s",
+            "cross": "+",
+            "x": "x",
+        }
+        linestyle = {
+            "solid": "-",
+            "dot": ":",
+            "dash": "--",
+            "dashdot": "-.",
+        }[style["dash"]]
+        fields = {
+            "color": style["edgecolor"],
+            "linewidth": style["linewidth"],
+            "linestyle": linestyle if "lines" in mode else "None",
+            "marker": marker_map.get(style["marker"], style["marker"])
+            if "markers" in mode else None,
+            "markersize": style["markersize"],
+            "alpha": style["alpha"],
+            "label": name if name is not None else style["name"],
+        }
+        coordinate_segments: list[list[list[float]]] = [[]]
+        for values in zip(*coordinates):
+            if any(value is None for value in values):
+                if coordinate_segments[-1]:
+                    coordinate_segments.append([])
+                continue
+            coordinate_segments[-1].append(values)
+
+        artists = []
+        for segment in coordinate_segments:
+            if not segment:
+                continue
+            segment_coordinates = list(zip(*segment))
+            segment_fields = {
+                **fields,
+                "label": fields["label"] if not artists else "_nolegend_",
+            }
+            if is_3d:
+                artist = fig.plot(
+                    segment_coordinates[0],
+                    segment_coordinates[1],
+                    segment_coordinates[2],
+                    **segment_fields,
+                )[0]
+            else:
+                artist = fig.plot(
+                    segment_coordinates[0],
+                    segment_coordinates[1],
+                    **segment_fields,
+                )[0]
+            artists.append(artist)
+        return artists[0] if artists else None
+
+    go = _require_plotly()
     trace_class = go.Scatter3d if is_3d else go.Scatter
     fields = dict(
         mode=mode,
@@ -261,9 +372,31 @@ def _add_points_trace(
     customdata : Any = None,
     hovertemplate: str | None = None
 ) -> Any:
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+    (np,ConvexHull,QhullError) = _require_plotting_dependencies()
     if is_3d is None:
         is_3d = points.shape[1] == 3
+    if not _is_plotly_figure(fig):
+        marker_map = {
+            "circle": "o",
+            "diamond": "D",
+            "diamond-open": "D",
+            "square": "s",
+            "square-open": "s",
+            "cross": "+",
+            "x": "x",
+        }
+        fields = {
+            "c": style["edgecolor"],
+            "s": style["markersize"] ** 2,
+            "marker": marker_map.get(style["marker"], style["marker"]),
+            "alpha": style["alpha"],
+            "label": name if name is not None else style["name"],
+        }
+        if is_3d:
+            return fig.scatter(points[:, 0], points[:, 1], points[:, 2], **fields)
+        return fig.scatter(points[:, 0], points[:, 1], **fields)
+
+    go = _require_plotly()
     trace_class = go.Scatter3d if is_3d else go.Scatter
     fields = dict(
         mode="markers",
@@ -281,7 +414,7 @@ def _add_points_trace(
     return trace
 
 def _plot_hyper_rectangle(fig,shape:lsuq.HyperRectangle,axis_indices,axis_labels,normalized_style,boundaryType):
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+    (np,ConvexHull,QhullError) = _require_plotting_dependencies()
     dimension = len(axis_indices)
     bounds = []
     is_3d = dimension == 3
@@ -303,10 +436,28 @@ def _plot_hyper_rectangle(fig,shape:lsuq.HyperRectangle,axis_indices,axis_labels
         hovertemplate = hovertemplate
         )
     if is_3d:
+        if not _is_plotly_figure(fig):
+            from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+            faces = [
+                (0, 1, 3, 2), (4, 5, 7, 6), (0, 1, 5, 4),
+                (2, 3, 7, 6), (0, 2, 6, 4), (1, 3, 7, 5),
+            ]
+            mesh = Poly3DCollection(
+                [corners[list(face)] for face in faces],
+                facecolors=normalized_style["facecolor"],
+                alpha=normalized_style["alpha"] * 0.6,
+                label=(normalized_style["name"] or boundaryType)
+                + f" boundary face ({boundaryType})",
+            )
+            fig.add_collection3d(mesh)
+            return
+
+        go = _require_plotly()
         hovertemplate = _hover_template(
             (normalized_style.get("name") or boundaryType) + f" boundary ({boundaryType})",
             axis_labels,
-            ) 
+        )
         mesh = go.Mesh3d(
             x=corners[:, 0],
             y=corners[:, 1],
@@ -324,7 +475,7 @@ def _plot_hyper_rectangle(fig,shape:lsuq.HyperRectangle,axis_indices,axis_labels
         fig.add_trace(mesh)
         
 def _plot_convex_hull(fig,shape,axis_indices,axis_labels,normalized_style,boundaryType):  
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+    (np,ConvexHull,QhullError) = _require_plotting_dependencies()
     data = np.asarray([point.coordinates for point in shape.points])
     projected = data[:,axis_indices]
     unique_points  = np.unique(projected,axis=0)            
@@ -422,6 +573,20 @@ def _plot_convex_hull(fig,shape,axis_indices,axis_labels,normalized_style,bounda
                                        hovertemplate = hovertemplate
                                        )
             
+                if not _is_plotly_figure(fig):
+                    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+                    mesh = Poly3DCollection(
+                        unique_points[hull.simplices],
+                        facecolors=normalized_style["facecolor"],
+                        alpha=normalized_style["alpha"] * 0.6,
+                        label=(normalized_style["name"] or boundaryType)
+                        + f" boundary faces ({boundaryType})",
+                    )
+                    fig.add_collection3d(mesh)
+                    return
+
+                go = _require_plotly()
                 simplices = hull.simplices
                 mesh = go.Mesh3d(
                  x=unique_points[:, 0],
@@ -439,7 +604,7 @@ def _plot_convex_hull(fig,shape,axis_indices,axis_labels,normalized_style,bounda
                 fig.add_trace(mesh)
 
 def _plot_experiment_points(fig,experiment_points,axis_indices,axis_labels,normalized_style,boundaryType,extraLabel=""):
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+    (np,ConvexHull,QhullError) = _require_plotting_dependencies()
     markers_loop = ["cross",
                     "diamond",
                     "diamond-open",
@@ -469,19 +634,33 @@ def _plot_experiment_points(fig,experiment_points,axis_indices,axis_labels,norma
                            customdata = customdata,
                            hovertemplate = hovertemplate)
         
-def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],style = None,axes: lsuq.Axes = None, fig = None,experiment_points = None,extraLabel = ""):   
-    try:
-        import plotly.graph_objects as go
-    except ImportError as exc:
-        raise ImportError(
-            "Plotting requires the optional dependency 'plotly'. "
-            "Install it with: pip install pylsuq[plotting]"
-        ) from exc
-    
+def add_boundary_plot(
+    boundary: lsuq.Boundary,
+    plot_axes: list[str] | list[int],
+    style=None,
+    axes: lsuq.Axes = None,
+    fig=None,
+    experiment_points=None,
+    extraLabel="",
+    backend: str = "plotly",
+):
+    _validate_backend(backend, fig)
+
+    if backend == "plotly":
+        go = _require_plotly()
+    else:
+        plt = _require_matplotlib()
+
     if fig is None:
-        fig = go.Figure()
-    
-       
+        if backend == "plotly":
+            fig = go.Figure()
+        else:
+            dimension = len(_axis_indices(plot_axes, axes))
+            if dimension not in (2, 3):
+                raise ValueError("dims must resolve to exactly two or three dimensions.")
+            _, fig = plt.subplots(
+                subplot_kw={"projection": "3d"} if dimension == 3 else None
+            )
     
     normalized_style = _style(style)
     axis_indices = _axis_indices(plot_axes, axes)
@@ -512,13 +691,28 @@ def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],s
     
     return fig
 
-def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plot_axes: list[str] | list[int],style = None,fig = None ):      
-    (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
+def add_domain_plot(
+    domain: lsuq.ActivityDomain | lsuq.TypedOperationalDomain,
+    plot_axes: list[str] | list[int],
+    style=None,
+    fig=None,
+    backend: str = "plotly",
+):
+    _validate_backend(backend, fig)
     style = {} if style is None else dict(style)
     if style.get('label') is None:
         style['label'] = domain.id
     if fig is None:
-        fig = go.Figure()
+        if backend == "plotly":
+            fig = _require_plotly().Figure()
+        elif backend == "matplotlib":
+            plt = _require_matplotlib()
+            dimension = len(_axis_indices(plot_axes, domain.axes))
+            if dimension not in (2, 3):
+                raise ValueError("dims must resolve to exactly two or three dimensions.")
+            _, fig = plt.subplots(
+                subplot_kw={"projection": "3d"} if dimension == 3 else None
+            )
 
     if style.get("color") is None and not all(
         style.get(color_key) is not None
@@ -526,7 +720,15 @@ def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plo
     ):
         style["color"] = _next_domain_color(fig)
         
-    add_boundary_plot(fig = fig,boundary = domain.boundary,axes = domain.axes,plot_axes = plot_axes,style = style,experiment_points=domain.experiment_points,extraLabel=domain.id)
+    add_boundary_plot(
+        fig=fig,
+        boundary=domain.boundary,
+        axes=domain.axes,
+        plot_axes=plot_axes,
+        style=style,
+        experiment_points=domain.experiment_points,
+        extraLabel=domain.id,
+        backend=backend,
+    )
     
     return fig
-
