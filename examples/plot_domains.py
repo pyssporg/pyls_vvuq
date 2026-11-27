@@ -5,7 +5,7 @@ from scipy.spatial import ConvexHull, QhullError
 import webbrowser
 # Example of visualising operational and activity domains
 
-PLOTTING_BACKEND = "plotly"  # Change to "matplotlib" to use matplotlib.
+
 
 def ConvexHull_boundary_points_from_points(points: lsuq.Points):
     """
@@ -161,36 +161,72 @@ DoUQ_1 = lsuq.ActivityDomain(id = 'DoUQ_1', name ='DoUQ_1', kind = 'UncertaintyQ
 # Decide which axes to project on
 plot_axes = [("uA","uB"),("uA","uB","pA"),("uA","pA","pB")]
 
+# Example simulation trajectory through three experiment points.
+trace_points = [p0, p7, p5]
+axis_indices = {axis.name: i for i, axis in enumerate(axes_od.axes)}
+
+PLOTTING_BACKEND = "matplotlib"  # Change to "matplotlib" to use matplotlib.
 if PLOTTING_BACKEND == "matplotlib":
     import matplotlib.pyplot as plt
 
-for ip,sub_plot_axes in enumerate(plot_axes):
-    
-    # Let first plot define the first figure (plot od first)
-    fig = lsuq.add_domain_plot(
-        od,
-        plot_axes=sub_plot_axes,
-        style={"color": "cornflowerblue"},
-        backend=PLOTTING_BACKEND,
-    )
-    
-    # Add the uq domain to the same figure
-    lsuq.add_domain_plot(
-        DoUQ_1,
-        plot_axes=sub_plot_axes,
-        style={"color": "orangered"},
-        fig=fig,
-        backend=PLOTTING_BACKEND,
-    )
-    
-    if PLOTTING_BACKEND == "matplotlib":
-        fig.grid(True)
-        fig.figure.savefig(output_dir / f"domains_{ip}.png")
-    else:
+    for ip, sub_plot_axes in enumerate(plot_axes):
+        ax = lsuq.add_domain_plot(
+            od,
+            plot_axes=sub_plot_axes,
+            style={"color": "cornflowerblue"},
+            backend="matplotlib",
+        )
+        lsuq.add_domain_plot(
+            DoUQ_1,
+            plot_axes=sub_plot_axes,
+            style={"color": "orangered"},
+            fig=ax,
+            backend="matplotlib",
+        )
+        trace_coordinates = [
+            [point.coordinates[axis_indices[name]] for point in trace_points]
+            for name in sub_plot_axes
+        ]
+        ax.plot(*trace_coordinates, color="black", marker="o", label="Simulation trace")
+        ax.grid(True)
+        ax.legend()
+        ax.figure.savefig(output_dir / f"domains_{ip}.png")
+
+    plt.show()
+
+elif PLOTTING_BACKEND == "plotly":
+    import plotly.graph_objects as go
+
+    for ip, sub_plot_axes in enumerate(plot_axes):
+        fig = lsuq.add_domain_plot(
+            od,
+            plot_axes=sub_plot_axes,
+            style={"color": "cornflowerblue"},
+            backend="plotly",
+        )
+        lsuq.add_domain_plot(
+            DoUQ_1,
+            plot_axes=sub_plot_axes,
+            style={"color": "orangered"},
+            fig=fig,
+            backend="plotly",
+        )
+        trace_coordinates = [
+            [point.coordinates[axis_indices[name]] for point in trace_points]
+            for name in sub_plot_axes
+        ]
+        trace_class = go.Scatter3d if len(sub_plot_axes) == 3 else go.Scatter
+        coordinates = dict(zip(("x", "y", "z"), trace_coordinates))
+        fig.add_trace(trace_class(
+            **coordinates,
+            mode="lines+markers",
+            line={"color": "black"},
+            name="Simulation trace",
+        ))
         # Save and open the Plotly figure in the default web browser.
         html_path = output_dir / f"domains_{ip}.html"
         fig.write_html(html_path)
         webbrowser.open(html_path.resolve().as_uri())
 
-if PLOTTING_BACKEND == "matplotlib":
-    plt.show()
+else:
+    raise ValueError("PLOTTING_BACKEND must be 'matplotlib' or 'plotly'.")
