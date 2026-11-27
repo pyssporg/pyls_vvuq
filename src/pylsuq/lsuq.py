@@ -449,9 +449,9 @@ class ResultSet(UQElem):
 
 @dataclass
 class PointSet(UQElem, MutableSequence):
-    points: Points
-    parameters: Parameters
+    points: Points    
     id: str = field(metadata=xml_attr())
+    parameters: Parameters | None = None
 
     def __getitem__(self, idx):
         return self.points[idx]
@@ -591,7 +591,7 @@ class Calibration(UQElem):
 
 @dataclass
 class Validation(UQElem):
-    parameter_set: ParameterSet
+    parameter_set: ParameterSet | None = None
     observed_variables: ObservedVariables | None = None
     sampling_method : SamplingMethod | None = None
     result_set: ResultSet | None = None
