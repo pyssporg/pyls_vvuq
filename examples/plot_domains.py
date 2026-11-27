@@ -175,18 +175,5 @@ for ip,sub_plot_axes in enumerate(plot_axes):
     webbrowser.open(html_path.resolve().as_uri())
 
 
-# Load a lsuq xml file and print domains
-lsuq_file = lsuq.load_xml(output_dir / Path( "L90LS_UD_OS_OS_UQ.xml"))
-plot_axes_2 = [("uA","pB")]
 
-for ia,sub_axes in enumerate(plot_axes_2):
-    for id,domain in enumerate(lsuq_file.domains.typed_operational_domains+lsuq_file.domains.activity_domains):
-        if id == 0:
-            fig2 = lsuq.add_domain_plot(domain, plot_axes = sub_axes)
-        else:
-            lsuq.add_domain_plot(domain, plot_axes = sub_axes, fig=fig2)
-
-    html_path2 = output_dir / Path( "domains_L90LS_UD_OS_OS_UQ_" + str(ia) + ".html")
-    fig2.write_html(html_path2) 
-    webbrowser.open(html_path2.resolve().as_uri())
 
