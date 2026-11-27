@@ -2,7 +2,7 @@ import pylsuq as lsuq
 from pathlib import Path
 import numpy as np
 from scipy.spatial import ConvexHull, QhullError
-
+import webbrowser
 # Example of visualising operational and activity domains
 
 def ConvexHull_boundary_points_from_points(points: lsuq.Points):
@@ -127,7 +127,7 @@ p2 = lsuq.Point(coordinates=[0,550,200,1,1,20, 20 ,1,1,1,35], id='P2')
 p3 = lsuq.Point(coordinates=[350,0,200,1,1,20, 20 ,1,1,1,35], id='P3')
 p4 = lsuq.Point(coordinates=[0,350,200,1,1,150,150,1,1,1,35], id='P4')
 p5 = lsuq.Point(coordinates=[600,0,200,1,1,150,150,1,1,1,35], id='P5')
-p6 = lsuq.Point(coordinates=[200,0,200,1,1,50,50,1,1,1,35], id='P6')
+p6 = lsuq.Point(coordinates=[200,0,200,1,1,50,50,1,1,1,35],   id='P6')
 p7 = lsuq.Point(coordinates=[200,200,200,1,1,50,50,1,1,1,35], id='P7')
 
 # All experiment points collected
@@ -170,4 +170,23 @@ for ip,sub_plot_axes in enumerate(plot_axes):
     # Save figure in html file
     fig.write_html(output_dir / Path( "domains_"+ str(ip) +".html"))
 
+    # Open the saved html file in the default web browser
+    html_path = output_dir / Path( "domains_"+ str(ip) +".html")
+    webbrowser.open(html_path.resolve().as_uri())
+
+
+# Load a lsuq xml file and print domains
+lsuq_file = lsuq.load_xml(output_dir / Path( "L90LS_UD_OS_OS_UQ.xml"))
+plot_axes_2 = [("uA","pB")]
+
+for ia,sub_axes in enumerate(plot_axes_2):
+    for id,domain in enumerate(lsuq_file.domains.typed_operational_domains+lsuq_file.domains.activity_domains):
+        if id == 0:
+            fig2 = lsuq.add_domain_plot(domain, plot_axes = sub_axes)
+        else:
+            lsuq.add_domain_plot(domain, plot_axes = sub_axes, fig=fig2)
+
+    html_path2 = output_dir / Path( "domains_L90LS_UD_OS_OS_UQ_" + str(ia) + ".html")
+    fig2.write_html(html_path2) 
+    webbrowser.open(html_path2.resolve().as_uri())
 

@@ -99,6 +99,19 @@ def _style(style: dict | None) -> dict[str, Any]:
         "name": values.get("name", values.get("label")),
     }
 
+def _next_domain_color(fig) -> str:
+    from plotly.colors import qualitative
+
+    colorway = fig.layout.colorway
+    if colorway is None and fig.layout.template is not None:
+        colorway = fig.layout.template.layout.colorway
+    if not colorway:
+        colorway = qualitative.Plotly
+
+    color_index = getattr(fig, "_pylsuq_domain_color_index", 0)
+    fig._pylsuq_domain_color_index = color_index + 1
+    return colorway[color_index % len(colorway)]
+
 def _hover_template(
     title: str,
     axis_labels: list[str],
@@ -501,12 +514,17 @@ def add_boundary_plot(boundary:lsuq.Boundary,plot_axes: list[str] | list [int],s
 
 def add_domain_plot(domain:lsuq.ActivityDomain | lsuq.TypedOperationalDomain,plot_axes: list[str] | list[int],style = None,fig = None ):      
     (np,go,ConvexHull,QhullError) = _require_plotting_dependencies()
-    if style is None:
-        style = {}
+    style = {} if style is None else dict(style)
     if style.get('label') is None:
         style['label'] = domain.id
     if fig is None:
         fig = go.Figure()
+
+    if style.get("color") is None and not all(
+        style.get(color_key) is not None
+        for color_key in ("edgecolor", "facecolor")
+    ):
+        style["color"] = _next_domain_color(fig)
         
     add_boundary_plot(fig = fig,boundary = domain.boundary,axes = domain.axes,plot_axes = plot_axes,style = style,experiment_points=domain.experiment_points,extraLabel=domain.id)
     
